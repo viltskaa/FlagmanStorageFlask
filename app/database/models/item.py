@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 
+
 @dataclass
-class Item():
+class Item:
     id: int
     article: str
-    count: int
+    qrcode: str
+    status: str = "STORAGE"

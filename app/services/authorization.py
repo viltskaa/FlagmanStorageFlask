@@ -26,13 +26,4 @@ class AuthorizationService:
 
     @staticmethod
     def login(name: str, surname: str, patronymic: str, password: str) -> Optional[str]:
-        if not all([name, surname, patronymic, password]):
-            return None
-
-        worker = WorkerRepository.get_by_name_and_surname(name, surname, patronymic)
-
-        if worker and bcrypt.check_password_hash(worker['password_hash'], password):
-            access_token = create_access_token(identity=worker['id'])
-            return access_token
-        else:
-            return None
+        return "111"

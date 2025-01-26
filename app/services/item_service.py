@@ -7,28 +7,41 @@ from app.repositories import ItemRepository
 WILDBERRIES_API_KEY = 'eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjQwMjI2djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTczMDQxNjI3NiwiaWQiOiI0NGJhZDg4Zi01ZjEwLTQ5MGYtODk4MS05ZjRhYWY5OWNlYjAiLCJpaWQiOjQ1ODkwNDkwLCJvaWQiOjEzNjkyOTUsInMiOjEwMjIsInNpZCI6ImM3ODI4Njk4LThlOTktNGVmYi1iODcxLTk1ZjhlODMxMmMxNCIsInQiOmZhbHNlLCJ1aWQiOjQ1ODkwNDkwfQ.CMANS9L1vyRE450nMrp4m8ZjjDFKhWiMtnN-DuuWvQ_uMn2bjeqm4pIDFTCpVMOqhulV5N8ykQSpdyFfE_RguA'
 WILDBERRIES_API_URL = 'https://marketplace-api.wildberries.ru/api/v3/orders/new'
 
+
 class ItemService:
-    
+
     @staticmethod
     def get_all() -> list[Item]:
-        return ItemRepository.get_all() 
-    
+        return ItemRepository.get_all()
+
     @staticmethod
-    def insert(article: str, count: int) -> Optional[int]:
-        return ItemRepository.insert(article, count)
-        
+    def insert(article: str, qrcode: str) -> Optional[int]:
+        return ItemRepository.insert(article, qrcode)
+
+    @staticmethod
+    def write_off(qrcode: str) -> Optional[int]:
+        return ItemRepository.write_off(qrcode)
+
+    @staticmethod
+    def shipment(qrcode: str) -> Optional[int]:
+        return ItemRepository.shipment(qrcode)
+
     @staticmethod
     def get_by_article(article: str) -> Item:
         return ItemRepository.get_by_article(article)
-        
+
     @staticmethod
     def delete_by_id(item_id: int) -> None:
         ItemRepository.delete_by_id(item_id)
-        
+
     @staticmethod
     def delete_all() -> None:
         ItemRepository.delete_all()
-    
+
+    @staticmethod
+    def check(qrcode: str) -> bool:
+        return ItemRepository.check_if_exists(qrcode)
+
     @staticmethod
     def get_wildberries_orders(key: str) -> None:
         headers = {

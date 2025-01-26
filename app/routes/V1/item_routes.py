@@ -1,60 +1,131 @@
 import flask
-from flask import Blueprint, Response, jsonify, request, current_app, json
+import pandas as pd
+from flask import Blueprint, jsonify, request, g, render_template
 
 from app.services import ItemService
+from app.utils.DisaiFileCacher.disai_file_casher import DisaiFileCasher
 
 item: flask.blueprints.Blueprint = Blueprint('item', __name__)
 
-@item.route('/orders', methods=['GET'])
-def orders():
-    # Получаем заказы и сохраняем их в базу данных
-    boolean = request.args.get('load')
 
-    # Если параметр load равен "true", загружаем заказы
-    if boolean == "true":
-        ItemService.get_wildberries_orders()
-    print(boolean)
-    # Получаем все записи из таблицы Item
-    items = ItemService.get_all()
-
-    # Преобразуем объекты Item в список словарей для JSON-ответа
-    item_list = [{
-        'id': item.id,
-        'article': item.article,
-        'count': item.count
-    } for item in items]
-
-    # Возвращаем JSON-ответ с данными
-    return jsonify(item_list)
-
-
-@item.route('/product_introduction', methods=['POST'])
-def product_introduction():
+@item.route('/product', methods=['POST'])
+def product_add():
     data = request.get_json()
 
-    if isinstance(data, list):
-        scanned_items = data
-        print(f"Received scanned items: {scanned_items}")
-        return jsonify({"message": "List of scanned items received", "items": scanned_items}), 200
-    else:
-        return jsonify({"error": "Invalid input, expected a list of items"}), 400
+    if not isinstance(data, list):
+        return jsonify({
+            "message": "Internal server error",
+        }), 500
+
+    dfc: DisaiFileCasher = g.get('disai_file_casher', None)
+    if dfc is None:
+        return jsonify({
+            "message": "Internal server error",
+        }), 500
+
+    for row in data:
+        qrocde = row.get('code', None)
+
+        if qrocde is None:
+            continue
+
+        qrcode_data = qrocde.split(",")
+        gtin = qrcode_data[0][4:]
+
+        gfc_entity = dfc.get_article(gtin)
+        if gfc_entity is None:
+            continue
+
+        ItemService.insert(gfc_entity.article, qrocde)
+
+    return jsonify({
+        "message": "List of scanned items processed successfully",
+    }), 200
 
 
-@item.route('/orders/updateByArticle', methods=['POST'])
-def update_by_article():
+@item.route('/write_off', methods=['POST'])
+def write_off():
     data = request.get_json()
 
-    article = data
-    order = ItemService.get_by_article(article)
+    if not isinstance(data, list):
+        return jsonify({
+            "message": "Internal server error",
+        }), 500
 
-    if order is None:
-        return jsonify({'error': 'Order not found'}), 404
+    for row in data:
+        qrocde = row.get('code', None)
 
-    if order.count > 0:
-        order.count -= 1  # Уменьшаем количество
-        if order.count == 0:
-            ItemService.delete_by_id(order.id)# Удаляем запись, если count стал 0
-    else:
-        return jsonify({'error': 'Cannot reduce count below zero'}), 400  # Дополнительная проверка
+        if qrocde is None:
+            continue
 
-    return jsonify({'message': 'Article updated successfully'}), 200
+        ItemService.write_off(qrocde)
+
+    return jsonify({
+        "message": "List of scanned items processed successfully",
+    }), 200
+
+
+@item.route('/shipment', methods=['POST'])
+def shipment():
+    data = request.get_json()
+
+    if not isinstance(data, list):
+        return jsonify({
+            "message": "Internal server error",
+        }), 500
+
+    for row in data:
+        qrocde = row.get('code', None)
+
+        if qrocde is None:
+            continue
+
+        ItemService.shipment(qrocde)
+
+    return jsonify({
+        "message": "List of scanned items processed successfully",
+    }), 200
+
+
+@item.route('/unique', methods=['POST'])
+def get_article_and_check_unique():
+    data = request.get_json()
+    dfc: DisaiFileCasher = g.get('disai_file_casher', None)
+
+    if dfc is None:
+        return jsonify({
+            "message": "Internal server error",
+        }), 500
+
+    qrcode = data.get('qrcode', None)
+    gtin = data.get('gtin', None)
+    if qrcode is None or gtin is None:
+        return jsonify({
+            "message": "Payload is empty"
+        }), 400
+
+    is_exist = ItemService.check(qrcode)
+    if is_exist:
+        return jsonify({
+            "message": "qrcode already exists",
+        }), 205
+
+    article = dfc.get_article(gtin)
+    if article is None:
+        return jsonify({
+            "message": "Article is't founded"
+        }), 404
+
+    return jsonify(article), 200
+
+
+@item.route('/list', methods=['GET'])
+def get_storage():
+    table = ItemService.get_all()
+    dataframe = pd.DataFrame(table, columns=['id', 'article', 'qrcode'])
+    dataframe = dataframe[['article']].value_counts().reset_index(name='Count')
+    dataframe.columns = ['Артикул', 'Количество']
+    return render_template(
+        "StorageTable.html",
+        table=dataframe.to_html(classes='table table-dark border rounded', justify='left', index=False),
+    )
