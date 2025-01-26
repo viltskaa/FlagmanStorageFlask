@@ -42,5 +42,6 @@ def _init_db_command():
 
 
 def init_app(app):
+    _init_database()
     app.teardown_appcontext(_close_database)
     app.cli.add_command(_init_db_command)

@@ -9,7 +9,6 @@ WILDBERRIES_API_URL = 'https://marketplace-api.wildberries.ru/api/v3/orders/new'
 
 
 class ItemService:
-
     @staticmethod
     def get_all() -> list[Item]:
         return ItemRepository.get_all()
