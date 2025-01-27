@@ -2,12 +2,20 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
-from flask import Flask, g, redirect
+from flask import Flask, redirect
+from flask_injector import FlaskInjector
+from injector import singleton
 
 from config import DevelopConfig
 from .database import database
 from .routes import ROUTES
 from .utils import pre, DisaiFileCasher
+
+root_path = Path(__file__).parent.parent
+
+
+def configure(binder):
+    binder.bind(DisaiFileCasher, to=DisaiFileCasher(file=root_path / "data.csv"), scope=singleton)
 
 
 def create_app():
@@ -20,17 +28,8 @@ def create_app():
         app.register_blueprint(route, url_prefix=f"/{route.name}")
 
     try:
-        database.init_app(app)
-
-        @app.before_request
-        def setup_dependencies():
-            if 'disai_file_casher' in g:
-                return
-
-            print('init disai_file_casher')
-            root_path = Path(__file__).parent.parent
-            g.disai_file_casher = DisaiFileCasher(file=root_path / "data.csv")
-
+        with app.app_context():
+            database.init_app(app)
     except Exception as e:
         app.logger.error(e)
 
@@ -41,8 +40,9 @@ def create_app():
     if app.debug:
         @app.route('/routes')
         def route():
-            return pre("<br/>".join(
-                [f"{url.endpoint:50} | {url.rule:20} | {url.methods}" for url in app.url_map.iter_rules()]
-            ))
+            return "<br/>".join([
+                f"<a href={url.rule}>{url.endpoint}</a>" for url in app.url_map.iter_rules()
+            ])
 
+    FlaskInjector(app=app, modules=[configure])
     return app

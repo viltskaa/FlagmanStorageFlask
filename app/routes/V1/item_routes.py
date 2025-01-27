@@ -9,16 +9,10 @@ item: flask.blueprints.Blueprint = Blueprint('item', __name__)
 
 
 @item.route('/product', methods=['POST'])
-def product_add():
+def product_add(dfc: DisaiFileCasher):
     data = request.get_json()
 
     if not isinstance(data, list):
-        return jsonify({
-            "message": "Internal server error",
-        }), 500
-
-    dfc: DisaiFileCasher = g.get('disai_file_casher', None)
-    if dfc is None:
         return jsonify({
             "message": "Internal server error",
         }), 500
@@ -88,14 +82,8 @@ def shipment():
 
 
 @item.route('/unique', methods=['POST'])
-def get_article_and_check_unique():
+def get_article_and_check_unique(dfc: DisaiFileCasher):
     data = request.get_json()
-    dfc: DisaiFileCasher = g.get('disai_file_casher', None)
-
-    if dfc is None:
-        return jsonify({
-            "message": "Internal server error",
-        }), 500
 
     qrcode = data.get('qrcode', None)
     gtin = data.get('gtin', None)
@@ -125,6 +113,7 @@ def get_storage():
     dataframe = pd.DataFrame(table, columns=['id', 'article', 'qrcode'])
     dataframe = dataframe[['article']].value_counts().reset_index(name='Count')
     dataframe.columns = ['Артикул', 'Количество']
+
     return render_template(
         "StorageTable.html",
         table=dataframe.to_html(classes='table table-dark border rounded', justify='left', index=False),
