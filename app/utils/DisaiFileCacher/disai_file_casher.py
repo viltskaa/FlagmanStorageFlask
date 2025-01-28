@@ -17,11 +17,19 @@ class DisaiFileCasher:
     def _load_cache(self):
         with open(self.__file) as f:
             csv_reader = csv.reader(f)
-            next(csv_reader)
+            next(csv_reader)  # Skip the header row
 
             for row in csv_reader:
+                # Skip invalid or empty rows
+                if len(row) != 2:
+                    continue
+
                 art, gtin = row
-                gtin = int(gtin)
+                try:
+                    gtin = int(gtin)
+                except ValueError:
+                    # Skip rows where GTIN cannot be converted to an integer
+                    continue
 
                 if gtin not in self.__cache:
                     self.__cache.update({gtin: art})
