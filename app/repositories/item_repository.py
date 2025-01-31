@@ -124,3 +124,15 @@ class ItemRepository:
             ItemRepository.last_error = e
             current_app.logger.error(e)
             return False
+
+    @staticmethod
+    def check_if_exists_and_status(qrcode: str) -> bool:
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            cursor.execute('SELECT id FROM item WHERE qrcode = ? AND status = "STORAGE"', (qrcode,))
+            return bool(cursor.fetchone())
+        except Exception as e:
+            ItemRepository.last_error = e
+            current_app.logger.error(e)
+            return False

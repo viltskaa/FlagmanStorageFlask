@@ -29,85 +29,6 @@ class ShipmentItemRepository:
             return None
 
     @staticmethod
-    def get_by_article(article: str) -> Optional[ShipmentItem]:
-        try:
-            database = db.get_database()
-            cursor = database.cursor()
-            today_date = datetime.now().strftime('%Y-%m-%d')
-            cursor.execute('''
-                SELECT id, article, count_cur, count_all, worker_id, created_at, is_active
-                FROM shipment_item
-                WHERE article = ? AND DATE(created_at) = ?
-            ''', (article,today_date,))
-            row = cursor.fetchone()
-            if row:
-                return ShipmentItem(*row)
-            else:
-                return None
-        except Exception as e:
-            ShipmentItemRepository.last_error = e
-            current_app.logger.error(e)
-            return None
-
-    @staticmethod
-    def get_by_id(id: int) -> Optional[ShipmentItem]:
-        try:
-            database = db.get_database()
-            cursor = database.cursor()
-            cursor.execute('''
-                   SELECT id, article, count_cur, count_all, worker_id, created_at, is_active
-                   FROM shipment_item
-                   WHERE id = ?
-               ''', (id,))
-            row = cursor.fetchone()
-            if row:
-                return ShipmentItem(*row)
-            else:
-                return None
-        except Exception as e:
-            ShipmentItemRepository.last_error = e
-            current_app.logger.error(e)
-            return None
-
-    @staticmethod
-    def update_count_cur(item_id: int, count_cur: int) -> bool:
-        try:
-            database = db.get_database()
-            cursor = database.cursor()
-
-            cursor.execute('''
-                UPDATE shipment_item
-                SET count_cur = ?
-                WHERE id = ? AND is_active=0
-            ''', (count_cur, item_id))
-
-            database.commit()
-            return True
-        except Exception as e:
-            ShipmentItemRepository.last_error = e
-            current_app.logger.error(f"Ошибка обновления count_cur: {e}")
-            return False
-
-    @staticmethod
-    def update_count_all(item_id: int, count_all: int) -> bool:
-        try:
-            database = db.get_database()
-            cursor = database.cursor()
-
-            cursor.execute('''
-                    UPDATE shipment_item
-                    SET count_all = ?
-                    WHERE id = ? AND is_active=0
-                ''', (count_all, item_id))
-
-            database.commit()
-            return True
-        except Exception as e:
-            ShipmentItemRepository.last_error = e
-            current_app.logger.error(f"Ошибка обновления count_cur: {e}")
-            return False
-
-    @staticmethod
     def get_all() -> list[ShipmentItem]:
         try:
             database = db.get_database()
@@ -115,10 +36,10 @@ class ShipmentItemRepository:
             today_date = datetime.now().strftime('%Y-%m-%d')
 
             cursor.execute('''
-                        SELECT id, article, count_cur, count_all, worker_id, created_at, is_active
-                        FROM shipment_item
-                        WHERE DATE(created_at) = ? AND is_active = 0
-                    ''', (today_date,))
+                            SELECT id, article, count_cur, count_all, worker_id, created_at, is_active
+                            FROM shipment_item
+                            WHERE DATE(created_at) = ? AND is_active = 0
+                        ''', (today_date,))
             rows = cursor.fetchall()
             return [ShipmentItem(*row) for row in rows]
         except Exception as e:
@@ -138,38 +59,37 @@ class ShipmentItemRepository:
         return True
 
     @staticmethod
-    def update_all_today():
+    def get_active_shipment_by_article(article: str):
         try:
             database = db.get_database()
             cursor = database.cursor()
-            today_date = datetime.now().strftime('%Y-%m-%d')
-            cursor.execute('''
-                UPDATE shipment_item
-                SET is_active = 1
-                WHERE DATE(created_at) = ?
-            ''',(today_date,))
-
-            database.commit()
-            return True
+            cursor.execute(
+                """SELECT id, article, count_cur, count_all 
+                   FROM shipment_item 
+                   WHERE article = ? AND is_active = 0 
+                   AND DATE(created_at) = DATE('now')""",
+                (article,),
+            )
+            row = cursor.fetchone()
+            return ShipmentItem(*row) if row else None
         except Exception as e:
-            ShipmentItemRepository.last_error = e
-            current_app.logger.error(f"Ошибка обновления count_cur: {e}")
-            return False
+            current_app.logger.error(e)
+            return None
 
     @staticmethod
-    def delete(id: int):
+    def update_count_cur(shipment_id: int, new_count_cur: int) -> bool:
         try:
             database = db.get_database()
             cursor = database.cursor()
-            cursor.execute('''
-                    DELETE FROM shipment_item
-                    WHERE id = ?
-                ''', (id,))
-
+            cursor.execute(
+                "UPDATE shipment_item SET count_cur = ? WHERE id = ?",
+                (new_count_cur, shipment_id),
+            )
             database.commit()
-            return True
+            return cursor.rowcount > 0
         except Exception as e:
-            ShipmentItemRepository.last_error = e
-            current_app.logger.error(f"Ошибка удаления count_cur: {e}")
+            current_app.logger.error(e)
             return False
+
+
 

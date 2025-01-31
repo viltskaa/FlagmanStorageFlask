@@ -42,6 +42,10 @@ class ItemService:
         return ItemRepository.check_if_exists(qrcode)
 
     @staticmethod
+    def check_with_status(qrcode: str) -> bool:
+        return ItemRepository.check_if_exists_and_status(qrcode)
+
+    @staticmethod
     def get_wildberries_orders(key: str) -> None:
         headers = {
             'Authorization': key,
