@@ -22,8 +22,8 @@ class ItemService:
         return ItemRepository.write_off(qrcode)
 
     @staticmethod
-    def shipment(qrcode: str) -> Optional[int]:
-        return ItemRepository.shipment(qrcode)
+    def shipment(qrcodes: list[str]) -> bool:
+        return ItemRepository.shipment(qrcodes)
 
     @staticmethod
     def get_by_article(article: str) -> Item:

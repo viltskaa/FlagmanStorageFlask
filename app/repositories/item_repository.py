@@ -80,20 +80,6 @@ class ItemRepository:
             return None
 
     @staticmethod
-    def shipment(qrcode: str) -> Optional[int]:
-        try:
-            database = db.get_database()
-            cursor = database.cursor()
-
-            cursor.execute("UPDATE item SET status = 'SHIPMENT' WHERE qrcode = ? AND status = 'STORAGE'", (qrcode,))
-            database.commit()
-            return cursor.lastrowid
-        except Exception as e:
-            ItemRepository.last_error = e
-            current_app.logger.error(e)
-            return None
-
-    @staticmethod
     def get_by_article(article: str) -> Optional[Item]:
         try:
             database = db.get_database()
@@ -135,4 +121,22 @@ class ItemRepository:
         except Exception as e:
             ItemRepository.last_error = e
             current_app.logger.error(e)
+            return False
+
+    @staticmethod
+    def shipment(qrcodes: list[str]) -> bool:
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+
+            cursor.execute(f'''
+                        UPDATE item SET status = 'SHIPMENT' WHERE qrcode IN ({','.join(['?'] * len(qrcodes))})
+                    ''', qrcodes)
+            database.commit()
+            print(True)
+            return True
+        except Exception as e:
+            ItemRepository.last_error = e
+            current_app.logger.error(e)
+            print(False)
             return False

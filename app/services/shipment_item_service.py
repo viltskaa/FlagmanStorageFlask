@@ -1,10 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 import requests
 from app.database import ShipmentItem
 import logging
 from flask import current_app
-from app.services import ItemService, OnShipmentService
+from .on_shipment_service import OnShipmentService
+from .item_service import ItemService
 from app.repositories import ShipmentItemRepository
 
 
@@ -24,10 +25,10 @@ class ShipmentItemService:
     @staticmethod
     def process_qr_scan(qrcode: str, article: str) -> bool:
         try:
-            if not ItemService.check_with_status(qrcode): # Проверка, что qr есть в item
+            if not ItemService.check_with_status(qrcode):
                 return False
 
-            if not OnShipmentService.check_qrcode_not_exists(qrcode): # Проверка, что qr нет в onShipment
+            if not OnShipmentService.check_qrcode_not_exists(qrcode):
                 return False
 
             shipment_item = ShipmentItemRepository.get_active_shipment_by_article(article)
@@ -36,16 +37,57 @@ class ShipmentItemService:
 
             shipment_id = shipment_item.id
 
-            new_count_cur = shipment_item.count_cur + 1
-            if new_count_cur > shipment_item.count_all:
+            current_count = OnShipmentService.get_count_by_shipment_id(shipment_id)
+
+            if current_count >= shipment_item.count_all:
                 return False
 
-            ShipmentItemRepository.update_count_cur(shipment_id, new_count_cur) # Обновление тек. отсканированого в shipmentItem
+            if not OnShipmentService.insert(shipment_id, qrcode):
+                return False
 
-            OnShipmentService.insert(shipment_id, qrcode) # добавление в onShipment
+            ShipmentItemRepository.update_count_cur(shipment_id, current_count + 1)
 
             return True
 
         except Exception as e:
             current_app.logger.error(f"Ошибка в process_qr_scan: {e}")
+            return False
+
+    @staticmethod
+    def handle_out_of_stock(item_id: int) -> tuple[bool, str]:
+        shipment = ShipmentItemRepository.get_by_id(item_id)
+        if shipment is None:
+            return False, "Item not found"
+
+        tomorrow = datetime.now() + timedelta(days=1)
+
+        if not ShipmentItemRepository.insert(shipment.article, shipment.count_all - shipment.count_cur, tomorrow):
+            return False, "Failed to insert new Item in the database"
+
+        if shipment.count_cur == 0:
+            if not ShipmentItemRepository.delete(item_id):
+                return False, "Failed to delete Item in the database"
+        else:
+            if not ShipmentItemRepository.update_count_all(item_id, shipment.count_cur):
+                return False, "Failed to update Item in the database"
+
+        return True, "Success"
+    @staticmethod
+    def shipment_all() -> bool:
+        try:
+            if not ShipmentItemRepository.update_today():
+                return False
+            shipment_ids = ShipmentItemRepository.get_all_true()
+            if not shipment_ids:
+                return False
+            print(shipment_ids)
+            qr_codes = OnShipmentService.get_qrcodes(shipment_ids)
+            if not qr_codes:
+                print("тута?")
+                return False
+            if not ItemService.shipment(qr_codes):
+                return False
+            return True
+        except Exception as e:
+            current_app.logger.error(f"Ошибка в shipment_all: {e}")
             return False

@@ -8,6 +8,25 @@ class ShipmentItemRepository:
     last_error: Optional[Exception] = None
 
     @staticmethod
+    def get_by_id(id: int) -> Optional[ShipmentItem]:
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            cursor.execute('''
+                       SELECT id, article, count_cur, count_all, worker_id, created_at, is_active
+                       FROM shipment_item
+                       WHERE id = ?
+                   ''', (id,))
+            row = cursor.fetchone()
+            if row:
+                return ShipmentItem(*row)
+            else:
+                return None
+        except Exception as e:
+            ShipmentItemRepository.last_error = e
+            current_app.logger.error(e)
+            return None
+    @staticmethod
     def insert(article: str, count_all: int, date: datetime) -> Optional[int]:
         try:
             database = db.get_database()
@@ -90,6 +109,82 @@ class ShipmentItemRepository:
         except Exception as e:
             current_app.logger.error(e)
             return False
+
+    @staticmethod
+    def delete(id: int):
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            cursor.execute('''
+                        DELETE FROM shipment_item
+                        WHERE id = ?
+                    ''', (id,))
+
+            database.commit()
+            return True
+        except Exception as e:
+            ShipmentItemRepository.last_error = e
+            current_app.logger.error(f"Ошибка удаления count_cur: {e}")
+            return False
+
+    @staticmethod
+    def update_count_all(item_id: int, count_all: int) -> bool:
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+
+            cursor.execute('''
+                        UPDATE shipment_item
+                        SET count_all = ?
+                        WHERE id = ? AND is_active=0
+                    ''', (count_all, item_id))
+
+            database.commit()
+            return True
+        except Exception as e:
+            ShipmentItemRepository.last_error = e
+            current_app.logger.error(f"Ошибка обновления count_cur: {e}")
+            return False
+
+    @staticmethod
+    def update_today():
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            today_date = datetime.now().strftime('%Y-%m-%d')
+            cursor.execute('''
+                UPDATE shipment_item
+                SET is_active = 1
+                WHERE DATE(created_at) = ? AND count_cur = count_all
+            ''',(today_date,))
+            print(True)
+            database.commit()
+            return True
+        except Exception as e:
+            ShipmentItemRepository.last_error = e
+            print(False)
+            current_app.logger.error(f"Ошибка обновления count_cur: {e}")
+            return False
+
+    @staticmethod
+    def get_all_true() -> list[int]:
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            today_date = datetime.now().strftime('%Y-%m-%d')
+
+            cursor.execute('''
+                                SELECT id
+                                FROM shipment_item
+                                WHERE DATE(created_at) = ? AND is_active = 1
+                            ''', (today_date,))
+            rows = cursor.fetchall()
+            return [row[0] for row in rows]
+        except Exception as e:
+            ShipmentItemRepository.last_error = e
+            current_app.logger.error(e)
+            return []
+
 
 
 

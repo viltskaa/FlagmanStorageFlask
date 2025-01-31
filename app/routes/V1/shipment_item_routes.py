@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 import flask
 import pandas as pd
-from app.services import ShipmentItemService,ItemService
+from app.services import ShipmentItemService
 from app.repositories import ShipmentItemRepository
 from flask import Blueprint, jsonify, request, g, render_template
 from app.utils.DisaiFileCacher.disai_file_casher import DisaiFileCasher
@@ -10,19 +10,6 @@ from app.utils.DisaiFileCacher.disai_file_casher import DisaiFileCasher
 shipment_item: flask.blueprints.Blueprint = Blueprint('shipment_item', __name__)
 
 
-@shipment_item.route('/check',methods=['POST'])
-def check_qr():
-    data = request.get_json()
-    qrcode = data.get('qrcode', None)
-    if qrcode is None:
-        return jsonify({
-            "message": "Payload is empty"
-        }), 400
-    is_exist = ItemService.check_with_status(qrcode)
-    if is_exist:
-        return jsonify({"message": "QR code is valid"}), 200
-    else:
-        return jsonify({"message": "QR code not found"}), 400
 
 
 @shipment_item.route('', methods=['GET'])
@@ -98,3 +85,23 @@ def scan_qr(dfc: DisaiFileCasher):
         return jsonify({"message": "QR-код успешно обработан"}), 200
     else:
         return jsonify({"message": "Ошибка при обработке QR-кода"}), 400
+
+@shipment_item.route('/<int:item_id>', methods=['POST'])
+def outOfStock(item_id):
+    success, message = ShipmentItemService.handle_out_of_stock(item_id)
+
+    if not success:
+        status_code = 404 if message == "Item not found" else 500
+        return jsonify({'error': message}), status_code
+
+    return jsonify({'message': message}), 200
+
+
+@shipment_item.route('/ship', methods=['POST'])
+def shipping():
+    ship = ShipmentItemService.shipment_all()
+
+    if ship:
+        return jsonify({'message': 'Success shiping'}), 200
+    else:
+        return jsonify({"message": "Internal server error"}), 500

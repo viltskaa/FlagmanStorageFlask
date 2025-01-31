@@ -59,28 +59,6 @@ def write_off():
     }), 200
 
 
-@item.route('/shipment', methods=['POST'])
-def shipment():
-    data = request.get_json()
-
-    if not isinstance(data, list):
-        return jsonify({
-            "message": "Internal server error",
-        }), 500
-
-    for row in data:
-        qrocde = row.get('code', None)
-
-        if qrocde is None:
-            continue
-
-        ItemService.shipment(qrocde)
-
-    return jsonify({
-        "message": "List of scanned items processed successfully",
-    }), 200
-
-
 @item.route('/unique', methods=['POST'])
 def get_article_and_check_unique(dfc: DisaiFileCasher):
     data = request.get_json()
