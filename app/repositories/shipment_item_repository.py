@@ -13,19 +13,19 @@ class ShipmentItemRepository:
             database = db.get_database()
             cursor = database.cursor()
             cursor.execute('''
-                       SELECT id, article, count_cur, count_all, worker_id, created_at, is_active
-                       FROM shipment_item
-                       WHERE id = ?
-                   ''', (id,))
+                SELECT id, article, count_cur, count_all, worker_id, created_date, created_time, is_active
+                FROM shipment_item
+                WHERE id = ?
+            ''', (id,))
             row = cursor.fetchone()
             if row:
                 return ShipmentItem(*row)
-            else:
-                return None
+            return None
         except Exception as e:
             ShipmentItemRepository.last_error = e
             current_app.logger.error(e)
             return None
+
     @staticmethod
     def insert(article: str, count_all: int, date: datetime) -> Optional[int]:
         try:
@@ -34,10 +34,10 @@ class ShipmentItemRepository:
 
             cursor.execute(
                 """
-                INSERT INTO shipment_item (article, count_cur, count_all, created_at, is_active)
-                VALUES (?, 0, ?, ?, 0)
+                INSERT INTO shipment_item (article, count_cur, count_all, created_date, created_time, is_active)
+                VALUES (?, 0, ?, DATE(?), TIME(?), 'FALSE')
                 """,
-                (article, count_all, date)
+                (article, count_all, date, date)
             )
 
             database.commit()
@@ -55,10 +55,10 @@ class ShipmentItemRepository:
             today_date = datetime.now().strftime('%Y-%m-%d')
 
             cursor.execute('''
-                            SELECT id, article, count_cur, count_all, worker_id, created_at, is_active
-                            FROM shipment_item
-                            WHERE DATE(created_at) = ? AND is_active = 0
-                        ''', (today_date,))
+                SELECT id, article, count_cur, count_all, worker_id, created_date, created_time, is_active
+                FROM shipment_item
+                WHERE created_date = ? AND is_active = 'FALSE'
+            ''', (today_date,))
             rows = cursor.fetchall()
             return [ShipmentItem(*row) for row in rows]
         except Exception as e:
@@ -69,25 +69,23 @@ class ShipmentItemRepository:
     @staticmethod
     def check_all_count_cur_equals_count_all():
         items = ShipmentItemRepository.get_all()
-        if len(items) == 0:
+        if not items:
             return False
-        for item in items:
-            # Accessing the attributes using dot notation
-            if item.count_cur != item.count_all:
-                return False
-        return True
+        return all(item.count_cur == item.count_all for item in items)
 
     @staticmethod
     def get_active_shipment_by_article(article: str):
         try:
             database = db.get_database()
             cursor = database.cursor()
+            today_date = datetime.now().strftime('%Y-%m-%d')
+
             cursor.execute(
                 """SELECT id, article, count_cur, count_all 
                    FROM shipment_item 
-                   WHERE article = ? AND is_active = 0 
-                   AND DATE(created_at) = DATE('now')""",
-                (article,),
+                   WHERE article = ? AND is_active = 'FALSE' 
+                   AND created_date = ?""",
+                (article, today_date),
             )
             row = cursor.fetchone()
             return ShipmentItem(*row) if row else None
@@ -116,15 +114,15 @@ class ShipmentItemRepository:
             database = db.get_database()
             cursor = database.cursor()
             cursor.execute('''
-                        DELETE FROM shipment_item
-                        WHERE id = ?
-                    ''', (id,))
+                DELETE FROM shipment_item
+                WHERE id = ?
+            ''', (id,))
 
             database.commit()
             return True
         except Exception as e:
             ShipmentItemRepository.last_error = e
-            current_app.logger.error(f"Ошибка удаления count_cur: {e}")
+            current_app.logger.error(f"Ошибка удаления: {e}")
             return False
 
     @staticmethod
@@ -134,16 +132,16 @@ class ShipmentItemRepository:
             cursor = database.cursor()
 
             cursor.execute('''
-                        UPDATE shipment_item
-                        SET count_all = ?
-                        WHERE id = ? AND is_active=0
-                    ''', (count_all, item_id))
+                UPDATE shipment_item
+                SET count_all = ?
+                WHERE id = ? AND is_active = 'FALSE'
+            ''', (count_all, item_id))
 
             database.commit()
             return True
         except Exception as e:
             ShipmentItemRepository.last_error = e
-            current_app.logger.error(f"Ошибка обновления count_cur: {e}")
+            current_app.logger.error(f"Ошибка обновления count_all: {e}")
             return False
 
     @staticmethod
@@ -152,18 +150,17 @@ class ShipmentItemRepository:
             database = db.get_database()
             cursor = database.cursor()
             today_date = datetime.now().strftime('%Y-%m-%d')
+
             cursor.execute('''
                 UPDATE shipment_item
-                SET is_active = 1
-                WHERE DATE(created_at) = ? AND count_cur = count_all
-            ''',(today_date,))
-            print(True)
+                SET is_active = 'TRUE'
+                WHERE created_date = ? AND count_cur = count_all
+            ''', (today_date,))
             database.commit()
             return True
         except Exception as e:
             ShipmentItemRepository.last_error = e
-            print(False)
-            current_app.logger.error(f"Ошибка обновления count_cur: {e}")
+            current_app.logger.error(f"Ошибка обновления is_active: {e}")
             return False
 
     @staticmethod
@@ -174,16 +171,17 @@ class ShipmentItemRepository:
             today_date = datetime.now().strftime('%Y-%m-%d')
 
             cursor.execute('''
-                                SELECT id
-                                FROM shipment_item
-                                WHERE DATE(created_at) = ? AND is_active = 1
-                            ''', (today_date,))
+                SELECT id
+                FROM shipment_item
+                WHERE created_date = ? AND is_active = 'TRUE'
+            ''', (today_date,))
             rows = cursor.fetchall()
             return [row[0] for row in rows]
         except Exception as e:
             ShipmentItemRepository.last_error = e
             current_app.logger.error(e)
             return []
+
 
 
 

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, time
 @dataclass
 class ShipmentItem:
     id: int
@@ -7,5 +7,6 @@ class ShipmentItem:
     count_cur: int
     count_all: int
     worker_id: int = 0
-    created_at: datetime = None
-    is_active: bool = False
+    created_date: date = None
+    created_time: time = None
+    is_active: str = "FALSE"
