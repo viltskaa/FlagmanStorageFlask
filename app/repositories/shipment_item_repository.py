@@ -27,7 +27,7 @@ class ShipmentItemRepository:
             return None
 
     @staticmethod
-    def insert(article: str, count_all: int, date: datetime) -> Optional[int]:
+    def insert(article: str, count_all: int, date: datetime, status: str) -> Optional[int]:
         try:
             database = db.get_database()
             cursor = database.cursor()
@@ -35,9 +35,9 @@ class ShipmentItemRepository:
             cursor.execute(
                 """
                 INSERT INTO shipment_item (article, count_cur, count_all, created_date, created_time, is_active)
-                VALUES (?, 0, ?, DATE(?), TIME(?), 'FALSE')
+                VALUES (?, 0, ?, DATE(?), TIME(?), ?)
                 """,
-                (article, count_all, date, date)
+                (article, count_all, date, date, status)
             )
 
             database.commit()
@@ -57,7 +57,7 @@ class ShipmentItemRepository:
             cursor.execute('''
                 SELECT id, article, count_cur, count_all, worker_id, created_date, created_time, is_active
                 FROM shipment_item
-                WHERE created_date = ? AND is_active = 'FALSE'
+                WHERE created_date = ? AND (is_active = 'RECEIVED' OR is_active = 'POSTPONED')
             ''', (today_date,))
             rows = cursor.fetchall()
             return [ShipmentItem(*row) for row in rows]
@@ -83,7 +83,7 @@ class ShipmentItemRepository:
             cursor.execute(
                 """SELECT id, article, count_cur, count_all 
                    FROM shipment_item 
-                   WHERE article = ? AND is_active = 'FALSE' 
+                   WHERE article = ? AND is_active = 'RECEIVED' OR is_active = 'POSTPONED' 
                    AND created_date = ?""",
                 (article, today_date),
             )
@@ -134,7 +134,7 @@ class ShipmentItemRepository:
             cursor.execute('''
                 UPDATE shipment_item
                 SET count_all = ?
-                WHERE id = ? AND is_active = 'FALSE'
+                WHERE id = ? AND is_active = 'RECEIVED'
             ''', (count_all, item_id))
 
             database.commit()
@@ -153,7 +153,7 @@ class ShipmentItemRepository:
 
             cursor.execute('''
                 UPDATE shipment_item
-                SET is_active = 'TRUE'
+                SET is_active = 'SHIPPED'
                 WHERE created_date = ? AND count_cur = count_all
             ''', (today_date,))
             database.commit()
@@ -173,7 +173,7 @@ class ShipmentItemRepository:
             cursor.execute('''
                 SELECT id
                 FROM shipment_item
-                WHERE created_date = ? AND is_active = 'TRUE'
+                WHERE created_date = ? AND is_active = 'SHIPPED'
             ''', (today_date,))
             rows = cursor.fetchall()
             return [row[0] for row in rows]

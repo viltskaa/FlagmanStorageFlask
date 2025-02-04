@@ -11,8 +11,8 @@ from app.repositories import ShipmentItemRepository
 
 class ShipmentItemService:
     @staticmethod
-    def insert(article: str, count_all: int, date: datetime) -> Optional[int]:
-        return ShipmentItemRepository.insert(article, count_all, date)
+    def insert(article: str, count_all: int, date: datetime, status: str) -> Optional[int]:
+        return ShipmentItemRepository.insert(article, count_all, date, status)
 
     @staticmethod
     def get_all() -> list[ShipmentItem]:
@@ -60,8 +60,10 @@ class ShipmentItemService:
             return False, "Item not found"
 
         tomorrow = datetime.now() + timedelta(days=1)
+        if shipment.is_active == 'POSTPONED':
+            return False, "Item has already been rescheduled 1 time"
 
-        if not ShipmentItemRepository.insert(shipment.article, shipment.count_all - shipment.count_cur, tomorrow):
+        if not ShipmentItemRepository.insert(shipment.article, shipment.count_all - shipment.count_cur, tomorrow, 'POSTPONED'):
             return False, "Failed to insert new Item in the database"
 
         if shipment.count_cur == 0:

@@ -23,7 +23,8 @@ def get_all():
         'id': item.id,
         'article': item.article,
         'count_cur': item.count_cur,
-        'count_all': item.count_all
+        'count_all': item.count_all,
+        'status': item.is_active
     } for item in items]
     print(ShipmentItemRepository.last_error)
     return jsonify(item_list)
@@ -44,7 +45,7 @@ def product_shipment_add(dfc: DisaiFileCasher):
             "message": "Необходим код",
         }), 500
 
-    ShipmentItemService.insert(gfc_entity.article, data.get('count_all'),datetime.now())
+    ShipmentItemService.insert(gfc_entity.article, data.get('count_all'),datetime.now(),'RECEIVED')
     print(ShipmentItemRepository.last_error)
     return jsonify({
         "message": "shipment_item add success",

@@ -9,4 +9,4 @@ class ShipmentItem:
     worker_id: int = 0
     created_date: date = None
     created_time: time = None
-    is_active: str = "FALSE"
+    is_active: str = "RECEIVED"
