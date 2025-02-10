@@ -4,10 +4,6 @@ from app.database import Item
 import logging
 from app.repositories import ItemRepository
 
-WILDBERRIES_API_KEY = 'eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjQwMjI2djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTczMDQxNjI3NiwiaWQiOiI0NGJhZDg4Zi01ZjEwLTQ5MGYtODk4MS05ZjRhYWY5OWNlYjAiLCJpaWQiOjQ1ODkwNDkwLCJvaWQiOjEzNjkyOTUsInMiOjEwMjIsInNpZCI6ImM3ODI4Njk4LThlOTktNGVmYi1iODcxLTk1ZjhlODMxMmMxNCIsInQiOmZhbHNlLCJ1aWQiOjQ1ODkwNDkwfQ.CMANS9L1vyRE450nMrp4m8ZjjDFKhWiMtnN-DuuWvQ_uMn2bjeqm4pIDFTCpVMOqhulV5N8ykQSpdyFfE_RguA'
-WILDBERRIES_API_URL = 'https://marketplace-api.wildberries.ru/api/v3/orders/new'
-
-
 class ItemService:
     @staticmethod
     def get_all() -> list[Item]:

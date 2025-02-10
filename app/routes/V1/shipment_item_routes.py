@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta
 
 import flask
-import pandas as pd
 from app.services import ShipmentItemService
 from app.repositories import ShipmentItemRepository
-from flask import Blueprint, jsonify, request, g, render_template
+from flask import Blueprint, jsonify, request
 from app.utils.DisaiFileCacher.disai_file_casher import DisaiFileCasher
+
 
 shipment_item: flask.blueprints.Blueprint = Blueprint('shipment_item', __name__)
 
@@ -24,7 +24,8 @@ def get_all():
         'article': item.article,
         'count_cur': item.count_cur,
         'count_all': item.count_all,
-        'status': item.is_active
+        'status': item.is_active,
+        'for_this': item.for_this
     } for item in items]
     print(ShipmentItemRepository.last_error)
     return jsonify(item_list)
@@ -45,11 +46,12 @@ def product_shipment_add(dfc: DisaiFileCasher):
             "message": "Необходим код",
         }), 500
 
-    ShipmentItemService.insert(gfc_entity.article, data.get('count_all'),datetime.now(),'RECEIVED')
+    ShipmentItemService.insert(gfc_entity.article, data.get('count_all'),datetime.now(),'RECEIVED',data.get('for_this'))
     print(ShipmentItemRepository.last_error)
     return jsonify({
         "message": "shipment_item add success",
     }), 200
+
 
 @shipment_item.route('/checkShipmentItems', methods=['GET'])
 def check_shipment_items():

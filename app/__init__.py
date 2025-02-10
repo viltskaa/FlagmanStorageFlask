@@ -1,15 +1,18 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+import atexit
 
 from flask import Flask, redirect
 from flask_injector import FlaskInjector
 from injector import singleton
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from config import DevelopConfig
 from .database import database
 from .routes import ROUTES
 from .utils import pre, DisaiFileCasher
+from app.services.wb_service import WBService
 
 root_path = Path(__file__).parent.parent
 
@@ -45,4 +48,20 @@ def create_app():
             ])
 
     FlaskInjector(app=app, modules=[configure])
+
+    scheduler = BackgroundScheduler()
+
+    def fetch_all():
+        with app.app_context():
+            try:
+                WBService.fetch_orders('АЛИСА2')
+                WBService.fetch_orders('СЕВЕРНОЕ')
+            except Exception as e:
+                app.logger.error(f"Scheduler error: {e}")
+
+    scheduler.add_job(fetch_all, 'cron', hour=8, minute=00)
+    scheduler.start()
+
+    atexit.register(lambda: scheduler.shutdown())
+
     return app

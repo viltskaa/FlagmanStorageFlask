@@ -13,7 +13,7 @@ class ShipmentItemRepository:
             database = db.get_database()
             cursor = database.cursor()
             cursor.execute('''
-                SELECT id, article, count_cur, count_all, worker_id, created_date, created_time, is_active
+                SELECT id, article, count_cur, count_all, worker_id, created_date, created_time, is_active, for_this
                 FROM shipment_item
                 WHERE id = ?
             ''', (id,))
@@ -27,17 +27,18 @@ class ShipmentItemRepository:
             return None
 
     @staticmethod
-    def insert(article: str, count_all: int, date: datetime, status: str) -> Optional[int]:
+    def insert(article: str, count_all: int, date: datetime, status: str, for_this: str) -> Optional[int]:
         try:
             database = db.get_database()
             cursor = database.cursor()
 
             cursor.execute(
                 """
-                INSERT INTO shipment_item (article, count_cur, count_all, created_date, created_time, is_active)
-                VALUES (?, 0, ?, DATE(?), TIME(?), ?)
+                INSERT INTO shipment_item (article, count_cur, count_all, created_date, created_time, is_active, 
+                for_this)
+                VALUES (?, 0, ?, DATE(?), TIME(?), ?, ?)
                 """,
-                (article, count_all, date, date, status)
+                (article, count_all, date, date, status, for_this)
             )
 
             database.commit()
@@ -55,7 +56,7 @@ class ShipmentItemRepository:
             today_date = datetime.now().strftime('%Y-%m-%d')
 
             cursor.execute('''
-                SELECT id, article, count_cur, count_all, worker_id, created_date, created_time, is_active
+                SELECT id, article, count_cur, count_all, for_this, worker_id, created_date, created_time, is_active
                 FROM shipment_item
                 WHERE created_date = ? AND (is_active = 'RECEIVED' OR is_active = 'POSTPONED')
             ''', (today_date,))
@@ -81,7 +82,7 @@ class ShipmentItemRepository:
             today_date = datetime.now().strftime('%Y-%m-%d')
 
             cursor.execute(
-                """SELECT id, article, count_cur, count_all 
+                """SELECT id, article, count_cur, count_all, for_this 
                    FROM shipment_item 
                    WHERE article = ? AND is_active = 'RECEIVED' OR is_active = 'POSTPONED' 
                    AND created_date = ?""",

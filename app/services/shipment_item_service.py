@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
-import requests
 from app.database import ShipmentItem
-import logging
 from flask import current_app
 from .on_shipment_service import OnShipmentService
 from .item_service import ItemService
@@ -11,8 +9,8 @@ from app.repositories import ShipmentItemRepository
 
 class ShipmentItemService:
     @staticmethod
-    def insert(article: str, count_all: int, date: datetime, status: str) -> Optional[int]:
-        return ShipmentItemRepository.insert(article, count_all, date, status)
+    def insert(article: str, count_all: int, date: datetime, status: str, for_this: str) -> Optional[int]:
+        return ShipmentItemRepository.insert(article, count_all, date, status, for_this)
 
     @staticmethod
     def get_all() -> list[ShipmentItem]:
@@ -63,7 +61,8 @@ class ShipmentItemService:
         if shipment.is_active == 'POSTPONED':
             return False, "Item has already been rescheduled 1 time"
 
-        if not ShipmentItemRepository.insert(shipment.article, shipment.count_all - shipment.count_cur, tomorrow, 'POSTPONED'):
+        if not ShipmentItemRepository.insert(shipment.article, shipment.count_all - shipment.count_cur, tomorrow,
+                                             'POSTPONED', shipment.for_this):
             return False, "Failed to insert new Item in the database"
 
         if shipment.count_cur == 0:
