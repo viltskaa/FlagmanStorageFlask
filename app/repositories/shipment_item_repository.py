@@ -13,7 +13,7 @@ class ShipmentItemRepository:
             database = db.get_database()
             cursor = database.cursor()
             cursor.execute('''
-                SELECT id, article, count_cur, count_all, worker_id, created_date, created_time, is_active, for_this
+                SELECT id, article, count_cur, count_all,for_this, worker_id, created_date, created_time, is_active
                 FROM shipment_item
                 WHERE id = ?
             ''', (id,))
@@ -34,9 +34,9 @@ class ShipmentItemRepository:
 
             cursor.execute(
                 """
-                INSERT INTO shipment_item (article, count_cur, count_all, created_date, created_time, is_active, 
+                INSERT INTO shipment_item (article, count_cur, count_all, created_date, created_time, is_active,
                 for_this)
-                VALUES (?, 0, ?, DATE(?), TIME(?), ?, ?)
+                VALUES (?, 0, ?, DATE(?), TIME(?), ?,?)
                 """,
                 (article, count_all, date, date, status, for_this)
             )

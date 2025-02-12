@@ -92,7 +92,7 @@ def scan_qr(dfc: DisaiFileCasher):
 @shipment_item.route('/<int:item_id>', methods=['POST'])
 def outOfStock(item_id):
     success, message = ShipmentItemService.handle_out_of_stock(item_id)
-
+    print(message)
     if not success:
         status_code = 404 if message == "Item not found" else 500
         return jsonify({'error': message}), status_code

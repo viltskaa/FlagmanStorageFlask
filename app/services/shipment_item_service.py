@@ -60,7 +60,7 @@ class ShipmentItemService:
         tomorrow = datetime.now() + timedelta(days=1)
         if shipment.is_active == 'POSTPONED':
             return False, "Item has already been rescheduled 1 time"
-
+        print(shipment.id)
         if not ShipmentItemRepository.insert(shipment.article, shipment.count_all - shipment.count_cur, tomorrow,
                                              'POSTPONED', shipment.for_this):
             return False, "Failed to insert new Item in the database"
