@@ -9,7 +9,7 @@
     <div class="container mt-4">
         <h2 class="text-white">Фильтр товаров по дате</h2>
 
-        <form action="/v1/item/list" method="GET" class="bg-light p-4 rounded">
+        <form action="/v1/shipment_item/list" method="GET" class="bg-light p-4 rounded">
             <div class="mb-3">
                 <label for="date_start" class="form-label">Дата начала:</label>
                 <input type="datetime-local" id="date_start" name="dateStart" class="form-control" required>
@@ -23,9 +23,9 @@
             <div class="mb-3">
                 <label for="status_req" class="form-label">Статус:</label>
                 <select id="status_req" name="status" class="form-select" required>
-                    <option value="STORAGE">На складе</option>
-                    <option value="SHIPMENT">Отгружен</option>
-                    <option value="WRITEOFF">Списан</option>
+                    <option value="RECEIVED">Поступившие заказы</option>
+                    <option value="SHIPPED">Отгружены</option>
+                    <option value="POSTPONED">Перенесенные</option>
                 </select>
             </div>
 

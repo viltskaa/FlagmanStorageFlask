@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import flask
 import pandas as pd
 from flask import Blueprint, jsonify, request, g, render_template
@@ -87,12 +89,24 @@ def get_article_and_check_unique(dfc: DisaiFileCasher):
 
 @item.route('/list', methods=['GET'])
 def get_storage():
-    table = ItemService.get_all()
-    dataframe = pd.DataFrame(table, columns=['id', 'article', 'qrcode'])
-    dataframe = dataframe[['article']].value_counts().reset_index(name='Count')
-    dataframe.columns = ['Артикул', 'Количество']
+    date_start = request.args.get('dateStart')
+    date_end = request.args.get('dateEnd')
+    status = request.args.get('status')
+    if date_start and date_end:
+        try:
+            datetime_start = datetime.strptime(date_start, "%Y-%m-%dT%H:%M")
+            datetime_end = datetime.strptime(date_end, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            return "Неверный формат даты", 400
 
-    return render_template(
-        "StorageTable.html",
-        table=dataframe.to_html(classes='table table-dark border rounded', justify='left', index=False),
-    )
+        table = ItemService.get_all_by_period(datetime_start, datetime_end, status)
+        dataframe = pd.DataFrame(table, columns=['id', 'article', 'qrcode'])
+        dataframe = dataframe[['article']].value_counts().reset_index(name='Count')
+        dataframe.columns = ['Артикул', 'Количество']
+
+        return render_template(
+            "StorageTable.html",
+            table=dataframe.to_html(classes='table table-dark border rounded', justify='left', index=False)
+        )
+
+    return render_template("StorageTable.html", table="")

@@ -4,8 +4,6 @@ from typing import List
 @dataclass
 class Worker:
     id: int
-    name: str
-    surname: str
-    patronymic: str
-    password_hash: str
+    full_name: str
+    password: str
     tokens: List[int]

@@ -68,6 +68,27 @@ class ShipmentItemRepository:
             return []
 
     @staticmethod
+    def get_all_by_period(date_start: datetime, date_end: datetime, status: str) -> list[ShipmentItem]:
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            date_start_datetime = date_start.strftime("%Y-%m-%d %H:%M:%S")
+            date_end_datetime = date_end.strftime("%Y-%m-%d %H:%M:%S")
+
+            cursor.execute("""
+                    SELECT id, article, count_cur,count_all,for_this, created_date, created_time 
+                    FROM shipment_item 
+                    WHERE is_active = ?
+                    AND (created_date || ' ' || created_time) BETWEEN ? AND ?
+                """, (status, date_start_datetime, date_end_datetime))
+            rows = cursor.fetchall()
+            return [ShipmentItem(*row) for row in rows]
+        except Exception as e:
+            ShipmentItemRepository.last_error = e
+            current_app.logger.error(e)
+            return []
+
+    @staticmethod
     def check_all_count_cur_equals_count_all():
         items = ShipmentItemRepository.get_all()
         if not items:

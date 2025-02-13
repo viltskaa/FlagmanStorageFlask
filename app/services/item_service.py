@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 import requests
 from app.database import Item
@@ -8,6 +9,10 @@ class ItemService:
     @staticmethod
     def get_all() -> list[Item]:
         return ItemRepository.get_all()
+
+    @staticmethod
+    def get_all_by_period(date_start: datetime,date_end: datetime, status:str) -> list[Item]:
+        return ItemRepository.get_all_by_period(date_start,date_end,status)
 
     @staticmethod
     def insert(article: str, qrcode: str) -> Optional[int]:

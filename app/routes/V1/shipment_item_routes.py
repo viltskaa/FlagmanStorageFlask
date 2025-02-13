@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
 
 import flask
+import pandas as pd
+
 from app.services import ShipmentItemService
 from app.repositories import ShipmentItemRepository
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, render_template
 from app.utils.DisaiFileCacher.disai_file_casher import DisaiFileCasher
 
 
@@ -108,3 +110,30 @@ def shipping():
         return jsonify({'message': 'Success shiping'}), 200
     else:
         return jsonify({"message": "Internal server error"}), 500
+
+
+@shipment_item.route('/list', methods=['GET'])
+def get_storage():
+    date_start = request.args.get('dateStart')
+    date_end = request.args.get('dateEnd')
+    status = request.args.get('status')
+    if date_start and date_end:
+        try:
+            datetime_start = datetime.strptime(date_start, "%Y-%m-%dT%H:%M")
+            datetime_end = datetime.strptime(date_end, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            return "Неверный формат даты", 400
+
+        table = ShipmentItemService.get_all_by_period(datetime_start, datetime_end, status)
+        dataframe = pd.DataFrame(table, columns=['article', 'count_cur', 'count_all', 'for_this', 'created_date',
+                                                 'created_time'])
+
+        dataframe.columns = ['Артикул', 'Отсканировано', 'Количество', 'Магазин', 'Дата', 'Время']
+
+
+        return render_template(
+            "ShipmentOrdersTable.html",
+            table=dataframe.to_html(classes='table table-dark border rounded', justify='left', index=False)
+        )
+
+    return render_template("ShipmentOrdersTable.html", table="")

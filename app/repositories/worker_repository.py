@@ -9,20 +9,18 @@ class WorkerRepository:
     last_error: Optional[Exception] = None
 
     @staticmethod
-    def get_by_name_and_surname(name: str, surname: str, patronymic: str) -> Optional[dict]:
+    def get_by_full_name(full_name: str) -> Optional[dict]:
         try:
             database = db.get_database()
             worker_row = database.execute(
-                'SELECT * FROM worker WHERE name = ? AND surname = ? AND patronymic = ?', (name, surname, patronymic,)
+                'SELECT * FROM worker WHERE full_name = ?', (full_name,)
             ).fetchone()
 
             if worker_row:
                 worker = {
                     'id': worker_row[0],
-                    'name': worker_row[1],
-                    'surname': worker_row[2],
-                    'patronymic': worker_row[3],
-                    'password_hash': worker_row[4]
+                    'full_name':worker_row[1],
+                    'password':worker_row[2]
                 }
                 return worker
             return None
@@ -32,15 +30,15 @@ class WorkerRepository:
             return None
 
     @staticmethod
-    def insert(name: str, surname: str, patronymic: str, password_hash: str) -> \
+    def insert(full_name: str, password: str) -> \
             Optional[int]:
         try:
             database = db.get_database()
             cursor = database.cursor()
 
             cursor.execute(
-                'INSERT INTO worker (name, surname, patronymic, password_hash) VALUES (?, ?, ?, ?, ?)',
-                (name, surname, patronymic, password_hash, )
+                'INSERT INTO worker (full_name,password) VALUES (?, ?)',
+                (full_name,password, )
             )
 
             database.commit()
@@ -50,25 +48,3 @@ class WorkerRepository:
             current_app.logger.error(e)
             return None
 
-    @staticmethod
-    def get_by_id(worker_id: int) -> Optional[dict]:
-        try:
-            database = db.get_database()
-            worker_row = database.execute(
-                'SELECT * FROM worker WHERE id = ?', (worker_id,)
-            ).fetchone()
-
-            if worker_row:
-                worker = {
-                    'id': worker_row[0],
-                    'name': worker_row[1],
-                    'surname': worker_row[2],
-                    'patronymic': worker_row[3],
-                    'password_hash': worker_row[4]
-                }
-                return worker
-            return None
-        except Exception as e:
-            WorkerRepository.last_error = e
-            current_app.logger.error(e)
-            return None

@@ -17,6 +17,9 @@ class ShipmentItemService:
         return ShipmentItemRepository.get_all()
 
     @staticmethod
+    def get_all_by_period(date_start: datetime, date_end: datetime, status: str) -> list[ShipmentItem]:
+        return ShipmentItemRepository.get_all_by_period(date_start, date_end, status)
+    @staticmethod
     def check_all_count_cur_equals_count_all() -> bool:
         return ShipmentItemRepository.check_all_count_cur_equals_count_all()
 

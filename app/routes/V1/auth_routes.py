@@ -14,19 +14,18 @@ def register() -> Response:
     patronymic = data.get('patronymic', None)
     password = data.get('password', None)
 
-    if not all([name, surname, password]):
+    if not all([name, surname,patronymic,password]):
         return current_app.response_class(
             response=json.dumps({'error': 'No params provided'}),
             status=400,
             mimetype='application/json'
         )
 
-    w_id = AuthorizationService.register(name, surname, patronymic, password)
+    w_id = AuthorizationService.register(name, surname, patronymic,password)
 
     if w_id:
         return current_app.response_class(
-            response=json.dumps({"msg": "Worker registered successfully",
-                                 "worker_id": w_id}),
+            response=json.dumps({"msg": "Worker registered successfully", "worker_id": w_id}),
             status=200,
             mimetype='application/json'
         )
@@ -44,14 +43,12 @@ def login() -> Response:
     name = data.get("name", None)
     surname = data.get("surname", None)
     patronymic = data.get("patronymic", None)
-    password = data.get("password", None)
-
-    token = AuthorizationService.login(name, surname, patronymic, password)
+    password = data.get('password', None)
+    token = AuthorizationService.login(name, surname, patronymic,password)
 
     if token:
         return current_app.response_class(
-            response=json.dumps({"msg": "Successfully logged in",
-                                 "token": token}),
+            response=json.dumps({"msg": "Successfully logged in", "token": token}),
             status=200,
             mimetype='application/json'
         )

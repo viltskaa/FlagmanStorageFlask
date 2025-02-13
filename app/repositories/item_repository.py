@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from flask import current_app
@@ -15,6 +16,27 @@ class ItemRepository:
             database = db.get_database()
             cursor = database.cursor()
             cursor.execute("SELECT id, article, qrcode FROM item WHERE status = 'STORAGE'")
+            rows = cursor.fetchall()
+            return [Item(*row) for row in rows]
+        except Exception as e:
+            ItemRepository.last_error = e
+            current_app.logger.error(e)
+            return []
+
+    @staticmethod
+    def get_all_by_period(date_start: datetime,date_end: datetime,status: str) -> list[Item]:
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            date_start_datetime = date_start.strftime("%Y-%m-%d %H:%M:%S")
+            date_end_datetime = date_end.strftime("%Y-%m-%d %H:%M:%S")
+
+            cursor.execute("""
+                SELECT id, article, qrcode 
+                FROM item 
+                WHERE status = ?
+                AND (created_date || ' ' || created_time) BETWEEN ? AND ?
+            """, (status,date_start_datetime, date_end_datetime))
             rows = cursor.fetchall()
             return [Item(*row) for row in rows]
         except Exception as e:
