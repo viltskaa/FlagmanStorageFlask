@@ -3,6 +3,7 @@ from datetime import timedelta
 from pathlib import Path
 import atexit
 
+import click
 from flask import Flask, redirect
 from flask_injector import FlaskInjector
 from injector import singleton
@@ -61,6 +62,13 @@ def create_app():
 
     scheduler.add_job(fetch_all, 'cron', hour=8, minute=00)
     scheduler.start()
+
+    @click.command("manual-parse")
+    def manual_parse():
+        fetch_all()
+        app.logger.info("parse complete")
+
+    app.cli.add_command(manual_parse)
 
     atexit.register(lambda: scheduler.shutdown())
 

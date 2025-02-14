@@ -76,7 +76,7 @@ class ShipmentItemRepository:
             date_end_datetime = date_end.strftime("%Y-%m-%d %H:%M:%S")
 
             cursor.execute("""
-                    SELECT id, article, count_cur,count_all,for_this, created_date, created_time 
+                    SELECT id, article, count_cur,count_all,for_this,worker_id,created_date, created_time 
                     FROM shipment_item 
                     WHERE is_active = ?
                     AND (created_date || ' ' || created_time) BETWEEN ? AND ?

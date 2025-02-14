@@ -125,6 +125,7 @@ def get_storage():
             return "Неверный формат даты", 400
 
         table = ShipmentItemService.get_all_by_period(datetime_start, datetime_end, status)
+        print(table)
         dataframe = pd.DataFrame(table, columns=['article', 'count_cur', 'count_all', 'for_this', 'created_date',
                                                  'created_time'])
 
