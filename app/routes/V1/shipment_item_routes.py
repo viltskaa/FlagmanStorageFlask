@@ -1,20 +1,46 @@
 from datetime import datetime, timedelta
-
+from flask_jwt_extended import jwt_required,get_jwt_identity,verify_jwt_in_request
 import flask
 import pandas as pd
-
+from flask import Blueprint, jsonify, request, g, render_template,abort
+from app.repositories import WorkerRepository
 from app.services import ShipmentItemService
 from app.repositories import ShipmentItemRepository
 from flask import Blueprint, jsonify, request, render_template
 from app.utils.DisaiFileCacher.disai_file_casher import DisaiFileCasher
+import jwt
+from werkzeug.exceptions import Unauthorized
 
 
 shipment_item: flask.blueprints.Blueprint = Blueprint('shipment_item', __name__)
 
 
+@shipment_item.errorhandler(jwt.InvalidTokenError)
+def handle_invalid_token(error):
+    return jsonify({"error": "Invalid token"}), 401
+
+
+@shipment_item.errorhandler(Unauthorized)
+def handle_unauthorized(error):
+    return jsonify({"error": "Missing or invalid authorization"}), 401
+
+
+@shipment_item.before_request
+def load_current_user():
+    try:
+        verify_jwt_in_request()
+        current_user = get_jwt_identity()
+        current_user = WorkerRepository.get_by_full_name(current_user)
+        if not current_user:
+            abort(401, description="Unauthorized: User not found")
+        g.current_user = current_user
+    except Exception:
+        abort(401, description="Unauthorized")
+
 
 
 @shipment_item.route('', methods=['GET'])
+@jwt_required()
 def get_all():
     items = ShipmentItemService.get_all()
     if items is None:
@@ -34,6 +60,7 @@ def get_all():
 
 
 @shipment_item.route('/shipment_product', methods=['POST'])
+@jwt_required()
 def product_shipment_add(dfc: DisaiFileCasher):
     data = request.get_json()
 
@@ -56,6 +83,7 @@ def product_shipment_add(dfc: DisaiFileCasher):
 
 
 @shipment_item.route('/checkShipmentItems', methods=['GET'])
+@jwt_required()
 def check_shipment_items():
     all_items_valid = ShipmentItemService.check_all_count_cur_equals_count_all()
 
@@ -66,6 +94,7 @@ def check_shipment_items():
 
 
 @shipment_item.route('/scanQr', methods=['POST'])
+@jwt_required()
 def scan_qr(dfc: DisaiFileCasher):
     data = request.get_json()
     qrcode = data.get('qrcode')
@@ -92,6 +121,7 @@ def scan_qr(dfc: DisaiFileCasher):
         return jsonify({"message": "Ошибка при обработке QR-кода"}), 400
 
 @shipment_item.route('/<int:item_id>', methods=['POST'])
+@jwt_required()
 def outOfStock(item_id):
     success, message = ShipmentItemService.handle_out_of_stock(item_id)
     print(message)
@@ -103,6 +133,7 @@ def outOfStock(item_id):
 
 
 @shipment_item.route('/ship', methods=['POST'])
+@jwt_required()
 def shipping():
     ship = ShipmentItemService.shipment_all()
 

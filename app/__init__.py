@@ -2,7 +2,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 import atexit
-
+from flask_jwt_extended import JWTManager
 import click
 from flask import Flask, redirect
 from flask_injector import FlaskInjector
@@ -25,8 +25,9 @@ def configure(binder):
 def create_app():
     app = Flask(__name__)
     app.config.from_object(DevelopConfig)
-    app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=2)
+
+    jwt = JWTManager(app)
 
     for route in ROUTES:
         app.register_blueprint(route, url_prefix=f"/{route.name}")

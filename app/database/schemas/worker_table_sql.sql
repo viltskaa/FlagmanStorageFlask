@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS worker (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    full_name TEXT NOT NULL,
+    full_name TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL
 );

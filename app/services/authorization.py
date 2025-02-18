@@ -25,10 +25,11 @@ class AuthorizationService:
                 return None
 
         @staticmethod
-        def login(name: str, surname: str, patronymic: str,password:str) -> Optional[str]:
+        def login(name: str, surname: str, patronymic: str, password: str) -> Optional[str]:
             full_name = f"{surname} {name} {patronymic}"
             worker = WorkerRepository.get_by_full_name(full_name)
             if worker:
                 if worker['password'] == password:
-                    return "Yes"
+                    access_token = create_access_token(identity=str(worker['full_name']))
+                    return access_token
             return None

@@ -3,7 +3,7 @@ app = create_app()
 
 if __name__ == '__main__':
     app.run(
-        host='',
+        host='192.168.41.52',
         port=8080
     )
 

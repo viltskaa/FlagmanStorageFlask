@@ -1,16 +1,39 @@
 from datetime import datetime
-
+from flask_jwt_extended import jwt_required,get_jwt_identity,verify_jwt_in_request
 import flask
 import pandas as pd
-from flask import Blueprint, jsonify, request, g, render_template
-
+from flask import Blueprint, jsonify, request, g, render_template,abort
+from app.repositories import WorkerRepository
 from app.services import ItemService
 from app.utils.DisaiFileCacher.disai_file_casher import DisaiFileCasher
 
 item: flask.blueprints.Blueprint = Blueprint('item', __name__)
+import jwt
+from werkzeug.exceptions import Unauthorized
 
+
+@item.errorhandler(jwt.InvalidTokenError)
+def handle_invalid_token(error):
+    return jsonify({"error": "Invalid token"}), 401
+
+@item.errorhandler(Unauthorized)
+def handle_unauthorized(error):
+    return jsonify({"error": "Missing or invalid authorization"}), 401
+
+@item.before_request
+def load_current_user():
+    try:
+        verify_jwt_in_request()
+        current_user = get_jwt_identity()
+        current_user = WorkerRepository.get_by_full_name(current_user)
+        if not current_user:
+            abort(401, description="Unauthorized: User not found")
+        g.current_user = current_user
+    except Exception:
+        abort(401, description="Unauthorized")
 
 @item.route('/product', methods=['POST'])
+@jwt_required()
 def product_add(dfc: DisaiFileCasher):
     data = request.get_json()
 
@@ -40,6 +63,7 @@ def product_add(dfc: DisaiFileCasher):
 
 
 @item.route('/write_off', methods=['POST'])
+@jwt_required()
 def write_off():
     data = request.get_json()
 
@@ -62,6 +86,7 @@ def write_off():
 
 
 @item.route('/unique', methods=['POST'])
+@jwt_required()
 def get_article_and_check_unique(dfc: DisaiFileCasher):
     data = request.get_json()
 
