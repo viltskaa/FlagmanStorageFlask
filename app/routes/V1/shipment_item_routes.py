@@ -22,7 +22,7 @@ def handle_invalid_token(error):
 
 @shipment_item.errorhandler(Unauthorized)
 def handle_unauthorized(error):
-    return jsonify({"error": "Missing or invalid authorization"}), 401
+    return jsonify({"error": "Сессия обновлена"}), 401
 
 
 @shipment_item.before_request
@@ -42,7 +42,8 @@ def load_current_user():
 @shipment_item.route('', methods=['GET'])
 @jwt_required()
 def get_all():
-    items = ShipmentItemService.get_all()
+    current_user_id = g.current_user["id"]
+    items = ShipmentItemService.get_all(current_user_id)
     if items is None:
         return jsonify({
             "message": "Internal server error",
@@ -85,7 +86,8 @@ def product_shipment_add(dfc: DisaiFileCasher):
 @shipment_item.route('/checkShipmentItems', methods=['GET'])
 @jwt_required()
 def check_shipment_items():
-    all_items_valid = ShipmentItemService.check_all_count_cur_equals_count_all()
+    current_user_id = g.current_user["id"]
+    all_items_valid = ShipmentItemService.check_all_count_cur_equals_count_all(current_user_id)
 
     if all_items_valid:
         return jsonify({"status": "true"}), 200
@@ -98,7 +100,7 @@ def check_shipment_items():
 def scan_qr(dfc: DisaiFileCasher):
     data = request.get_json()
     qrcode = data.get('qrcode')
-
+    current_user_id = g.current_user["id"]
     if not qrcode:
         return jsonify({"message": "qrcode обязателен"}), 400
 
@@ -113,7 +115,7 @@ def scan_qr(dfc: DisaiFileCasher):
         }), 404
     article = gfc_entity.article
 
-    success = ShipmentItemService.process_qr_scan(qrcode, article)
+    success = ShipmentItemService.process_qr_scan(qrcode, article, current_user_id)
 
     if success:
         return jsonify({"message": "QR-код успешно обработан"}), 200
@@ -123,7 +125,8 @@ def scan_qr(dfc: DisaiFileCasher):
 @shipment_item.route('/<int:item_id>', methods=['POST'])
 @jwt_required()
 def outOfStock(item_id):
-    success, message = ShipmentItemService.handle_out_of_stock(item_id)
+    current_user_id = g.current_user["id"]
+    success, message = ShipmentItemService.handle_out_of_stock(item_id,current_user_id)
     print(message)
     if not success:
         status_code = 404 if message == "Item not found" else 500
@@ -135,7 +138,8 @@ def outOfStock(item_id):
 @shipment_item.route('/ship', methods=['POST'])
 @jwt_required()
 def shipping():
-    ship = ShipmentItemService.shipment_all()
+    current_user_id = g.current_user["id"]
+    ship = ShipmentItemService.shipment_all(current_user_id)
 
     if ship:
         return jsonify({'message': 'Success shiping'}), 200

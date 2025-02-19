@@ -25,7 +25,7 @@ def configure(binder):
 def create_app():
     app = Flask(__name__)
     app.config.from_object(DevelopConfig)
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=2)
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 
     jwt = JWTManager(app)
 

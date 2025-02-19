@@ -4,6 +4,7 @@ from app.database import ShipmentItem
 from flask import current_app
 from .on_shipment_service import OnShipmentService
 from .item_service import ItemService
+from .worker_service import WorkerService
 from app.repositories import ShipmentItemRepository
 
 
@@ -13,26 +14,28 @@ class ShipmentItemService:
         return ShipmentItemRepository.insert(article, count_all, date, status, for_this)
 
     @staticmethod
-    def get_all() -> list[ShipmentItem]:
-        return ShipmentItemRepository.get_all()
+    def get_all(worker_id: int) -> list[ShipmentItem]:
+        tokens = WorkerService.get_tokens(worker_id)
+        return ShipmentItemRepository.get_all(tokens)
 
     @staticmethod
     def get_all_by_period(date_start: datetime, date_end: datetime, status: str) -> list[ShipmentItem]:
         return ShipmentItemRepository.get_all_by_period(date_start, date_end, status)
     @staticmethod
-    def check_all_count_cur_equals_count_all() -> bool:
-        return ShipmentItemRepository.check_all_count_cur_equals_count_all()
+    def check_all_count_cur_equals_count_all(user_id: int) -> bool:
+        tokens = WorkerService.get_tokens(user_id)
+        return ShipmentItemRepository.check_all_count_cur_equals_count_all(tokens)
 
     @staticmethod
-    def process_qr_scan(qrcode: str, article: str) -> bool:
+    def process_qr_scan(qrcode: str, article: str, user_id: int) -> bool:
         try:
             if not ItemService.check_with_status(qrcode):
                 return False
 
             if not OnShipmentService.check_qrcode_not_exists(qrcode):
                 return False
-
-            shipment_item = ShipmentItemRepository.get_active_shipment_by_article(article)
+            tokens = WorkerService.get_tokens(user_id)
+            shipment_item = ShipmentItemRepository.get_active_shipment_by_article(article, tokens)
             if not shipment_item:
                 return False
 
@@ -46,7 +49,7 @@ class ShipmentItemService:
             if not OnShipmentService.insert(shipment_id, qrcode):
                 return False
 
-            ShipmentItemRepository.update_count_cur(shipment_id, current_count + 1)
+            ShipmentItemRepository.update_count_cur(shipment_id, current_count + 1, user_id)
 
             return True
 
@@ -55,7 +58,7 @@ class ShipmentItemService:
             return False
 
     @staticmethod
-    def handle_out_of_stock(item_id: int) -> tuple[bool, str]:
+    def handle_out_of_stock(item_id: int,worker_id: int) -> tuple[bool, str]:
         shipment = ShipmentItemRepository.get_by_id(item_id)
         if shipment is None:
             return False, "Item not found"
@@ -65,31 +68,29 @@ class ShipmentItemService:
             return False, "Item has already been rescheduled 1 time"
         print(shipment.id)
         if not ShipmentItemRepository.insert(shipment.article, shipment.count_all - shipment.count_cur, tomorrow,
-                                             'POSTPONED', shipment.for_this):
+                                             'POSTPONED', shipment.for_this,worker_id):
             return False, "Failed to insert new Item in the database"
 
         if shipment.count_cur == 0:
             if not ShipmentItemRepository.delete(item_id):
                 return False, "Failed to delete Item in the database"
         else:
-            if not ShipmentItemRepository.update_count_all(item_id, shipment.count_cur):
+            if not ShipmentItemRepository.update_count_all(item_id, shipment.count_cur,worker_id):
                 return False, "Failed to update Item in the database"
 
         return True, "Success"
     @staticmethod
-    def shipment_all() -> bool:
+    def shipment_all(user_id:int) -> bool:
         try:
-            if not ShipmentItemRepository.update_today():
+            if not ShipmentItemRepository.update_today(user_id):
                 return False
             shipment_ids = ShipmentItemRepository.get_all_true()
             if not shipment_ids:
                 return False
-            print(shipment_ids)
             qr_codes = OnShipmentService.get_qrcodes(shipment_ids)
             if not qr_codes:
-                print("тута?")
                 return False
-            if not ItemService.shipment(qr_codes):
+            if not ItemService.shipment(qr_codes, user_id):
                 return False
             return True
         except Exception as e:

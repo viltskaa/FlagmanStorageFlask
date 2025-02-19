@@ -18,7 +18,7 @@ def handle_invalid_token(error):
 
 @item.errorhandler(Unauthorized)
 def handle_unauthorized(error):
-    return jsonify({"error": "Missing or invalid authorization"}), 401
+    return jsonify({"error": "Сессия обновлена"}), 401
 
 @item.before_request
 def load_current_user():
@@ -36,7 +36,7 @@ def load_current_user():
 @jwt_required()
 def product_add(dfc: DisaiFileCasher):
     data = request.get_json()
-
+    current_user_id = g.current_user["id"]
     if not isinstance(data, list):
         return jsonify({
             "message": "Internal server error",
@@ -55,7 +55,7 @@ def product_add(dfc: DisaiFileCasher):
         if gfc_entity is None:
             continue
 
-        ItemService.insert(gfc_entity.article, qrocde)
+        ItemService.insert(gfc_entity.article, qrocde, current_user_id)
 
     return jsonify({
         "message": "List of scanned items processed successfully",
@@ -66,7 +66,7 @@ def product_add(dfc: DisaiFileCasher):
 @jwt_required()
 def write_off():
     data = request.get_json()
-
+    current_user_id = g.current_user["id"]
     if not isinstance(data, list):
         return jsonify({
             "message": "Internal server error",
@@ -78,7 +78,7 @@ def write_off():
         if qrocde is None:
             continue
 
-        ItemService.write_off(qrocde)
+        ItemService.write_off(qrocde,current_user_id)
 
     return jsonify({
         "message": "List of scanned items processed successfully",

@@ -15,16 +15,16 @@ class ItemService:
         return ItemRepository.get_all_by_period(date_start,date_end,status)
 
     @staticmethod
-    def insert(article: str, qrcode: str) -> Optional[int]:
-        return ItemRepository.insert(article, qrcode)
+    def insert(article: str, qrcode: str,user_id: int) -> Optional[int]:
+        return ItemRepository.insert(article, qrcode,user_id)
 
     @staticmethod
-    def write_off(qrcode: str) -> Optional[int]:
-        return ItemRepository.write_off(qrcode)
+    def write_off(qrcode: str,user_id: int) -> Optional[int]:
+        return ItemRepository.write_off(qrcode, user_id)
 
     @staticmethod
-    def shipment(qrcodes: list[str]) -> bool:
-        return ItemRepository.shipment(qrcodes)
+    def shipment(qrcodes: list[str], worker_id: int) -> bool:
+        return ItemRepository.shipment(qrcodes,worker_id)
 
     @staticmethod
     def get_by_article(article: str) -> Item:
@@ -46,42 +46,3 @@ class ItemService:
     def check_with_status(qrcode: str) -> bool:
         return ItemRepository.check_if_exists_and_status(qrcode)
 
-    @staticmethod
-    def get_wildberries_orders(key: str) -> None:
-        headers = {
-            'Authorization': key,
-            'Content-Type': 'application/json'
-        }
-
-        try:
-            response = requests.get(WILDBERRIES_API_URL, headers=headers)
-            response.raise_for_status()  # Вызвать ошибку для статусов 4xx/5xx
-
-            data = response.json()  # Получаем список заказов как JSON-объект
-            orders = data.get("orders", [])
-
-            # Удаляем все существующие записи в таблице Item
-            ItemRepository.delete_all()
-
-            # Создаем словарь для подсчета количества товаров по article
-            article_count = {}
-
-            # Подсчитываем количество товаров по каждому article
-            for order in orders:
-                article = order.get("article")
-                if article is not None:
-                    # Увеличиваем счетчик для данного article
-                    if article in article_count:
-                        article_count[article] += 1
-                    else:
-                        article_count[article] = 1
-
-            # Сохраняем данные в базу данных
-            for article, count in article_count.items():
-                # Создаем новый объект
-                ItemService.insert(article, count)
-
-        except requests.exceptions.HTTPError as http_err:
-            logging.error(f"HTTP error occurred: {http_err} - Response: {response.text}")
-        except Exception as err:
-            logging.error(f"An error occurred: {err}")

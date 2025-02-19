@@ -27,18 +27,18 @@ class ShipmentItemRepository:
             return None
 
     @staticmethod
-    def insert(article: str, count_all: int, date: datetime, status: str, for_this: str) -> Optional[int]:
+    def insert(article: str, count_all: int, date: datetime, status: str, for_this: str, worker_id: int = None) -> Optional[int]:
         try:
             database = db.get_database()
             cursor = database.cursor()
 
             cursor.execute(
                 """
-                INSERT INTO shipment_item (article, count_cur, count_all, created_date, created_time, is_active,
+                INSERT INTO shipment_item (article, count_cur, count_all, worker_id, created_date, created_time, is_active,
                 for_this)
-                VALUES (?, 0, ?, DATE(?), TIME(?), ?,?)
+                VALUES (?, 0, ?, ?, DATE(?), TIME(?), ?,?)
                 """,
-                (article, count_all, date, date, status, for_this)
+                (article, count_all,worker_id, date, date, status, for_this)
             )
 
             database.commit()
@@ -49,17 +49,17 @@ class ShipmentItemRepository:
             return None
 
     @staticmethod
-    def get_all() -> list[ShipmentItem]:
+    def get_all(tokens: list[str]) -> list[ShipmentItem]:
         try:
             database = db.get_database()
             cursor = database.cursor()
             today_date = datetime.now().strftime('%Y-%m-%d')
 
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT id, article, count_cur, count_all, for_this, worker_id, created_date, created_time, is_active
                 FROM shipment_item
-                WHERE created_date = ? AND (is_active = 'RECEIVED' OR is_active = 'POSTPONED')
-            ''', (today_date,))
+                WHERE created_date = ? AND for_this IN ({','.join(['?'] * len(tokens))})  AND (is_active = 'RECEIVED' OR is_active = 'POSTPONED')
+            ''', (today_date, *tokens,))
             rows = cursor.fetchall()
             return [ShipmentItem(*row) for row in rows]
         except Exception as e:
@@ -89,25 +89,25 @@ class ShipmentItemRepository:
             return []
 
     @staticmethod
-    def check_all_count_cur_equals_count_all():
-        items = ShipmentItemRepository.get_all()
+    def check_all_count_cur_equals_count_all(tokens: list[str]):
+        items = ShipmentItemRepository.get_all(tokens)
         if not items:
             return False
         return all(item.count_cur == item.count_all for item in items)
 
     @staticmethod
-    def get_active_shipment_by_article(article: str):
+    def get_active_shipment_by_article(article: str, tokens: list[str]):
         try:
             database = db.get_database()
             cursor = database.cursor()
             today_date = datetime.now().strftime('%Y-%m-%d')
 
             cursor.execute(
-                """SELECT id, article, count_cur, count_all, for_this 
+                f"""SELECT id, article, count_cur, count_all, for_this 
                    FROM shipment_item 
-                   WHERE article = ? AND is_active = 'RECEIVED' OR is_active = 'POSTPONED' 
+                   WHERE article = ?  AND for_this IN ({','.join(['?'] * len(tokens))}) AND is_active = 'RECEIVED' OR is_active = 'POSTPONED' 
                    AND created_date = ?""",
-                (article, today_date),
+                (article, *tokens, today_date),
             )
             row = cursor.fetchone()
             return ShipmentItem(*row) if row else None
@@ -116,13 +116,13 @@ class ShipmentItemRepository:
             return None
 
     @staticmethod
-    def update_count_cur(shipment_id: int, new_count_cur: int) -> bool:
+    def update_count_cur(shipment_id: int, new_count_cur: int,user_id: int) -> bool:
         try:
             database = db.get_database()
             cursor = database.cursor()
             cursor.execute(
-                "UPDATE shipment_item SET count_cur = ? WHERE id = ?",
-                (new_count_cur, shipment_id),
+                "UPDATE shipment_item SET count_cur = ?, worker_id=? WHERE id = ?",
+                (new_count_cur,user_id, shipment_id),
             )
             database.commit()
             return cursor.rowcount > 0
@@ -148,16 +148,16 @@ class ShipmentItemRepository:
             return False
 
     @staticmethod
-    def update_count_all(item_id: int, count_all: int) -> bool:
+    def update_count_all(item_id: int, count_all: int,worker_id: int) -> bool:
         try:
             database = db.get_database()
             cursor = database.cursor()
 
             cursor.execute('''
                 UPDATE shipment_item
-                SET count_all = ?
+                SET count_all = ?, worker_id = ?
                 WHERE id = ? AND is_active = 'RECEIVED'
-            ''', (count_all, item_id))
+            ''', (count_all,worker_id, item_id))
 
             database.commit()
             return True
@@ -167,7 +167,7 @@ class ShipmentItemRepository:
             return False
 
     @staticmethod
-    def update_today():
+    def update_today(user_id: int):
         try:
             database = db.get_database()
             cursor = database.cursor()
@@ -175,9 +175,9 @@ class ShipmentItemRepository:
 
             cursor.execute('''
                 UPDATE shipment_item
-                SET is_active = 'SHIPPED'
+                SET is_active = 'SHIPPED',worker_id=?
                 WHERE created_date = ? AND count_cur = count_all
-            ''', (today_date,))
+            ''', (user_id, today_date,))
             database.commit()
             return True
         except Exception as e:

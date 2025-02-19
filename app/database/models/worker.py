@@ -6,4 +6,3 @@ class Worker:
     id: int
     full_name: str
     password: str
-    tokens: List[int]

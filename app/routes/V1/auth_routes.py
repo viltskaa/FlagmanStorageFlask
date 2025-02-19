@@ -13,15 +13,14 @@ def register() -> Response:
     surname = data.get('surname', None)
     patronymic = data.get('patronymic', None)
     password = data.get('password', None)
-
-    if not all([name, surname,patronymic,password]):
+    tokens = data.get('tokens',None)
+    if not all([name, surname,patronymic,password,tokens]):
         return current_app.response_class(
             response=json.dumps({'error': 'No params provided'}),
             status=400,
             mimetype='application/json'
         )
-
-    w_id = AuthorizationService.register(name, surname, patronymic,password)
+    w_id = AuthorizationService.register(name, surname, patronymic,password,tokens)
 
     if w_id:
         return current_app.response_class(
@@ -58,3 +57,24 @@ def login() -> Response:
             status=500,
             mimetype='application/json'
         )
+
+@auth.route('/refresh',methods=['POST'])
+def refresh() -> Response:
+    data = request.json
+    name = data.get("name", None)
+    surname = data.get("surname", None)
+    patronymic = data.get("patronymic", None)
+    token = AuthorizationService.refresh(name,surname,patronymic)
+    if token:
+        return current_app.response_class(
+            response=json.dumps({"msg": "Обновленная сессия", "token": token}),
+            status=200,
+            mimetype='application/json'
+        )
+    else:
+        return current_app.response_class(
+            response=json.dumps({'error': 'Ошибка при обновлении'}),
+            status=500,
+            mimetype='application/json'
+        )
+

@@ -70,14 +70,14 @@ class ItemRepository:
             return None
 
     @staticmethod
-    def insert(article: str, qrcode: str) -> Optional[int]:
+    def insert(article: str, qrcode: str, id: int) -> Optional[int]:
         try:
             database = db.get_database()
             cursor = database.cursor()
 
             cursor.execute(
-                "INSERT INTO item (article, qrcode, status) VALUES (?, ?, 'STORAGE')",
-                (article, qrcode)
+                "INSERT INTO item (article, qrcode, status, worker_id) VALUES (?, ?, 'STORAGE',?)",
+                (article, qrcode, id)
             )
 
             database.commit()
@@ -88,12 +88,12 @@ class ItemRepository:
             return None
 
     @staticmethod
-    def write_off(qrcode: str) -> Optional[int]:
+    def write_off(qrcode: str,user_id:int) -> Optional[int]:
         try:
             database = db.get_database()
             cursor = database.cursor()
 
-            cursor.execute("UPDATE item SET status = 'WRITEOFF' WHERE qrcode = ? AND status = 'STORAGE'", (qrcode,))
+            cursor.execute("UPDATE item SET status = 'WRITEOFF' , worker_id = ? WHERE qrcode = ? AND status = 'STORAGE'", (user_id,qrcode,))
             database.commit()
             return cursor.lastrowid
         except Exception as e:
@@ -146,14 +146,16 @@ class ItemRepository:
             return False
 
     @staticmethod
-    def shipment(qrcodes: list[str]) -> bool:
+    def shipment(qrcodes: list[str],worker_id: int) -> bool:
         try:
             database = db.get_database()
             cursor = database.cursor()
 
             cursor.execute(f'''
-                        UPDATE item SET status = 'SHIPMENT' WHERE qrcode IN ({','.join(['?'] * len(qrcodes))})
-                    ''', qrcodes)
+                        UPDATE item 
+                        SET status = 'SHIPMENT', worker_id = ? 
+                        WHERE qrcode IN ({','.join(['?'] * len(qrcodes))})
+                    ''', (worker_id, *qrcodes))
             database.commit()
             print(True)
             return True

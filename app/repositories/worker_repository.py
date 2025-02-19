@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from flask import current_app
 
@@ -30,6 +30,35 @@ class WorkerRepository:
             return None
 
     @staticmethod
+    def get_tokens_ids(worker_id: int) -> list[int]:
+        try:
+            database = db.get_database()
+            tokens = database.execute('SELECT token_id from worker_tokens WHERE worker_id = ?',(worker_id,)
+            ).fetchall()
+            return [row[0] for row in tokens]
+        except Exception as e:
+            WorkerRepository.last_error = e
+            current_app.logger.error(e)
+            return []
+
+    @staticmethod
+    def get_tokens(token_ids: list[int]) -> list[str]:
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            cursor.execute(f'''
+                                   SELECT name
+                                   FROM tokens
+                                   WHERE id IN ({','.join(['?'] * len(token_ids))})
+                               ''', token_ids, )
+            return [row[0] for row in cursor.fetchall()]
+        except Exception as e:
+            WorkerRepository.last_error = e
+            current_app.logger.error(e)
+            print(False)
+            return []
+
+    @staticmethod
     def insert(full_name: str, password: str) -> \
             Optional[int]:
         try:
@@ -48,3 +77,18 @@ class WorkerRepository:
             current_app.logger.error(e)
             return None
 
+    @staticmethod
+    def insert_tokens(user_id: int, ids: List[int]):
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            for id in ids:
+                cursor.execute(
+                    'INSERT INTO worker_tokens (worker_id,token_id) VALUES (?, ?)',
+                    (user_id,id)
+                )
+            database.commit()
+        except Exception as e:
+            WorkerRepository.last_error = e
+            current_app.logger.error(e)
+            return None
