@@ -39,10 +39,13 @@ def register() -> Response:
 @auth.route('/login', methods=['POST'])
 def login() -> Response:
     data = request.json
-    name = data.get("name", None)
-    surname = data.get("surname", None)
-    patronymic = data.get("patronymic", None)
-    password = data.get('password', None)
+    qrcode = data.get('qrcode')
+    qrcode_data = qrcode.split(",")
+    print(qrcode)
+    surname = qrcode_data[1][7:]
+    name = qrcode_data[0][4:]
+    patronymic = qrcode_data[2][10:]
+    password = qrcode_data[3][8:]
     token = AuthorizationService.login(name, surname, patronymic,password)
 
     if token:
