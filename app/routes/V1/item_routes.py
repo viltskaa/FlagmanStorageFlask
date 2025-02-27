@@ -11,6 +11,7 @@ item: flask.blueprints.Blueprint = Blueprint('item', __name__)
 import jwt
 from werkzeug.exceptions import Unauthorized
 
+OPEN_ROUTES = {"/v1/item/list"}
 
 @item.errorhandler(jwt.InvalidTokenError)
 def handle_invalid_token(error):
@@ -22,6 +23,8 @@ def handle_unauthorized(error):
 
 @item.before_request
 def load_current_user():
+    if request.path in OPEN_ROUTES:
+        return
     try:
         verify_jwt_in_request()
         current_user = get_jwt_identity()
@@ -60,6 +63,42 @@ def product_add(dfc: DisaiFileCasher):
     return jsonify({
         "message": "List of scanned items processed successfully",
     }), 200
+
+
+@item.route('/check_storage', methods=['POST'])
+def check_storage():
+    try:
+        data = request.get_json()
+        qrcode = data.get('code')
+
+        if not qrcode:
+            return jsonify({"error": "QR code is required"}), 400
+
+        exists = ItemService.check(qrcode)
+        if exists:
+            return jsonify({"exists": "true"}), 200
+        else:
+            return jsonify({"exists": "false"}), 200
+    except Exception as e:
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@item.route('/check_write_off',methods=['POST'])
+def check_write_off():
+    try:
+        data = request.get_json()
+        qrcode = data.get('code')
+
+        if not qrcode:
+            return jsonify({"error": "QR code is required"}), 400
+        exists = ItemService.check_with_status_write_off(qrcode)
+        if exists:
+            return jsonify({"exists": "true"}), 200
+        else:
+            return jsonify({"exists": "false"}), 200
+    except Exception as e:
+        return jsonify({"error": "Internal server error"}), 500
+
 
 
 @item.route('/write_off', methods=['POST'])

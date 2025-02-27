@@ -1,5 +1,5 @@
 from typing import Optional, List
-
+from app.database import Worker
 from flask import current_app
 
 from app.database import database as db
@@ -7,6 +7,20 @@ from app.database import database as db
 
 class WorkerRepository:
     last_error: Optional[Exception] = None
+
+    @staticmethod
+    def get_all_users() -> list[Worker]:
+        try:
+            database = db.get_database()
+            worker_rows = database.execute(
+                'SELECT * FROM worker'
+            ).fetchall()
+            if worker_rows:
+                return [Worker(*row) for row in worker_rows]
+        except Exception as e:
+            WorkerRepository.last_error = e
+            current_app.logger.error(e)
+            return None
 
     @staticmethod
     def get_by_full_name(full_name: str) -> Optional[dict]:

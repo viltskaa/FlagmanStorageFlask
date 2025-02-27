@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+
+<body class="p-2 vh-100 bg-dark">
+    <div class="container mt-4">
+        <h2 class="text-white">Регистрация</h2>
+        <form id="registerForm" class="bg-light p-4 rounded">
+            <div class="mb-3">
+                <label for="surname" class="form-label">Фамилия:</label>
+                <input type="text" id="surname" name="surname" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label for="name" class="form-label">Имя:</label>
+                <input type="text" id="name" name="name" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label for="patronymic" class="form-label">Отчество:</label>
+                <input type="text" id="patronymic" name="patronymic" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Пароль:</label>
+                <input type="password" id="password" name="password" class="form-control" required>
+                <small id="passwordHelp" class="form-text text-muted">Пароль должен содержать минимум 8 символов, включая заглавные и строчные буквы и цифры, но не должен содержать русские символы.</small>
+            </div>
+
+            <div class="mb-3">
+                <label for="tokenSelect" class="form-label">Выберите токен:</label>
+                <select id="tokenSelect" class="form-select">
+                </select>
+                <button type="button" class="btn btn-secondary mt-2" onclick="addToken()">Добавить</button>
+            </div>
+
+            <table class="table table-bordered bg-white">
+                <thead>
+                    <tr>
+                        <th>Токены</th>
+                        <th>Действие</th>
+                    </tr>
+                </thead>
+                <tbody id="tokenTableBody">
+                </tbody>
+            </table>
+
+            <button type="button" class="btn btn-primary" onclick="submitForm()">Зарегистрироваться</button>
+            <button id="generatePdfButton" class="btn btn-secondary mt-2" style="display: none;" onclick="generatePdf()">Получить QR</button>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            loadTokens();
+        });
+
+        function loadTokens() {
+            fetch('/v1/shipment_item/tokens')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Ошибка загрузки токенов');
+                    }
+                    return response.json();
+                })
+                .then(tokens => {
+                    let select = document.getElementById("tokenSelect");
+                    tokens.forEach(token => {
+                        let option = document.createElement("option");
+                        option.value = token.id;
+                        option.textContent = token.name;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    alert('Не удалось загрузить токены: ' + error.message);
+                });
+        }
+
+        function addToken() {
+            let select = document.getElementById("tokenSelect");
+            let selectedToken = select.value;
+            let tableBody = document.getElementById("tokenTableBody");
+
+            if (!selectedToken) return;
+
+            if ([...tableBody.children].some(row => row.dataset.token === selectedToken)) {
+                alert("Этот токен уже добавлен!");
+                return;
+            }
+
+            let selectedTokenText = select.options[select.selectedIndex].textContent;
+
+            let row = document.createElement("tr");
+            row.dataset.token = selectedToken;
+            row.innerHTML = `
+                <td>${selectedTokenText}</td>
+                <td><button type="button" class="btn btn-danger" onclick="removeToken(this)">Удалить</button></td>
+            `;
+            tableBody.appendChild(row);
+        }
+
+        function removeToken(button) {
+            let row = button.closest("tr");
+            row.remove();
+        }
+
+        function validateForm() {
+            let surname = document.getElementById("surname").value;
+            let name = document.getElementById("name").value;
+            let patronymic = document.getElementById("patronymic").value;
+            let password = document.getElementById("password").value;
+            let tokenTable = document.getElementById("tokenTableBody");
+
+            if (!surname || !name || !patronymic || !password) {
+                alert("Все поля должны быть заполнены!");
+                return false;
+            }
+
+            let russianCharacters = /[а-яА-ЯЁё]/;
+            if (russianCharacters.test(surname) || russianCharacters.test(name) || russianCharacters.test(patronymic)) {
+                alert("ФИО должно быть написано транслитом (Пример : Ivanov Ivan Ivanovich)");
+                return false;
+            }
+            if (russianCharacters.test(password)) {
+                alert("Пароль не должен содержать русские символы!");
+                return false;
+            }
+
+            if (tokenTable.children.length === 0) {
+                alert("Необходимо добавить хотя бы один токен!");
+                return false;
+            }
+
+            return true;
+        }
+
+        function submitForm() {
+            if (!validateForm()) {
+                return;
+            }
+
+            let formData = {
+                name: document.getElementById("name").value.toLowerCase(),
+                surname: document.getElementById("surname").value.toLowerCase(),
+                patronymic: document.getElementById("patronymic").value.toLowerCase(),
+                password: document.getElementById("password").value.toLowerCase(),
+                tokens: Array.from(document.querySelectorAll("#tokenTableBody tr")).map(row => row.dataset.token)
+            };
+
+            fetch('/v1/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        alert(data.msg);
+                        // Показываем кнопку для генерации PDF
+                        document.getElementById("generatePdfButton").style.display = "inline-block";
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при регистрации: ' + error.message);
+                });
+        }
+
+        function generatePdf() {
+            let formData = {
+                name: document.getElementById("name").value.toLowerCase(),
+                surname: document.getElementById("surname").value.toLowerCase(),
+                patronymic: document.getElementById("patronymic").value.toLowerCase(),
+                password: document.getElementById("password").value.toLowerCase()
+            };
+
+            fetch('/v1/auth/generate_pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Ошибка при генерации PDF');
+                }
+                alert('Запрос на генерацию PDF отправлен');
+            })
+            .catch(error => {
+                alert('Ошибка: ' + error.message);
+            });
+        }
+
+    </script>
+</body>
+
+</html>

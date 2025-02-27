@@ -4,6 +4,7 @@ from flask import current_app
 from app.database import Item
 
 from app.database import database as db
+from app.database import Token
 
 
 class TokenRepository:
@@ -28,3 +29,17 @@ class TokenRepository:
             TokenRepository.last_error = e
             current_app.logger.error(e)
             return None
+
+    @staticmethod
+    def get_all_tokens() -> list[Token]:
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            cursor.execute('SELECT id, name, token FROM tokens')
+            rows = cursor.fetchall()
+            if rows:
+                return [Token(*row) for row in rows]
+        except Exception as e:
+            TokenRepository.last_error = e
+            current_app.logger.error(e)
+            return []

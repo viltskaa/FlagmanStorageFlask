@@ -1,18 +1,21 @@
-from datetime import datetime, timedelta
-from flask_jwt_extended import jwt_required,get_jwt_identity,verify_jwt_in_request
+import jwt
+import json
 import flask
 import pandas as pd
-from flask import Blueprint, jsonify, request, g, render_template,abort
+from flask import Response
+from datetime import datetime, timedelta
 from app.repositories import WorkerRepository
-from app.services import ShipmentItemService
-from app.repositories import ShipmentItemRepository
+from app.services import ShipmentItemService, TokenService
 from flask import Blueprint, jsonify, request, render_template
 from app.utils.DisaiFileCacher.disai_file_casher import DisaiFileCasher
-import jwt
+from flask import Blueprint, jsonify, request, g, render_template, abort
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
+
 from werkzeug.exceptions import Unauthorized
 
-
 shipment_item: flask.blueprints.Blueprint = Blueprint('shipment_item', __name__)
+
+OPEN_ROUTES = {"/v1/shipment_item/list", "/v1/shipment_item/tokens"}
 
 
 @shipment_item.errorhandler(jwt.InvalidTokenError)
@@ -27,6 +30,8 @@ def handle_unauthorized(error):
 
 @shipment_item.before_request
 def load_current_user():
+    if request.path in OPEN_ROUTES:
+        return
     try:
         verify_jwt_in_request()
         current_user = get_jwt_identity()
@@ -36,7 +41,6 @@ def load_current_user():
         g.current_user = current_user
     except Exception:
         abort(401, description="Unauthorized")
-
 
 
 @shipment_item.route('', methods=['GET'])
@@ -56,7 +60,6 @@ def get_all():
         'status': item.is_active,
         'for_this': item.for_this
     } for item in items]
-    print(ShipmentItemRepository.last_error)
     return jsonify(item_list)
 
 
@@ -76,8 +79,8 @@ def product_shipment_add(dfc: DisaiFileCasher):
             "message": "Необходим код",
         }), 500
 
-    ShipmentItemService.insert(gfc_entity.article, data.get('count_all'),datetime.now(),'RECEIVED',data.get('for_this'))
-    print(ShipmentItemRepository.last_error)
+    ShipmentItemService.insert(gfc_entity.article, data.get('count_all'), datetime.now(), 'RECEIVED',
+                               data.get('for_this'))
     return jsonify({
         "message": "shipment_item add success",
     }), 200
@@ -122,11 +125,12 @@ def scan_qr(dfc: DisaiFileCasher):
     else:
         return jsonify({"message": "Ошибка при обработке QR-кода"}), 400
 
+
 @shipment_item.route('/<int:item_id>', methods=['POST'])
 @jwt_required()
 def outOfStock(item_id):
     current_user_id = g.current_user["id"]
-    success, message = ShipmentItemService.handle_out_of_stock(item_id,current_user_id)
+    success, message = ShipmentItemService.handle_out_of_stock(item_id, current_user_id)
     print(message)
     if not success:
         status_code = 404 if message == "Item not found" else 500
@@ -166,10 +170,24 @@ def get_storage():
 
         dataframe.columns = ['Артикул', 'Отсканировано', 'Количество', 'Магазин', 'Дата', 'Время']
 
-
         return render_template(
             "ShipmentOrdersTable.html",
             table=dataframe.to_html(classes='table table-dark border rounded', justify='left', index=False)
         )
 
     return render_template("ShipmentOrdersTable.html", table="")
+
+
+@shipment_item.route('/tokens', methods=['GET'])
+def get_tokens():
+    tokens = TokenService.get_tokens()
+    if tokens is None:
+        return jsonify({
+            "message": "Internal server error",
+        }), 500
+    item_list = [{
+        'id': item.id,
+        'name': item.name,
+    } for item in tokens]
+
+    return Response(json.dumps(item_list, ensure_ascii=False), content_type="application/json; charset=utf-8")
