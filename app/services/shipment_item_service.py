@@ -10,11 +10,11 @@ from app.repositories import ShipmentItemRepository
 
 class ShipmentItemService:
     @staticmethod
-    def insert(article: str, count_all: int, date: datetime, status: str, for_this: str) -> Optional[int]:
-        return ShipmentItemRepository.insert(article, count_all, date, status, for_this)
+    def insert(article: str, order_id: str, date: datetime, status: str, for_this: str) -> Optional[int]:
+        return ShipmentItemRepository.insert(article, order_id, date, status, for_this)
 
     @staticmethod
-    def get_all(worker_id: int) -> list[ShipmentItem]:
+    def get_all(worker_id: int) -> list[dict]:
         tokens = WorkerService.get_tokens(worker_id)
         return ShipmentItemRepository.get_all(tokens)
 
@@ -41,15 +41,10 @@ class ShipmentItemService:
 
             shipment_id = shipment_item.id
 
-            current_count = OnShipmentService.get_count_by_shipment_id(shipment_id)
-
-            if current_count >= shipment_item.count_all:
-                return False
-
             if not OnShipmentService.insert(shipment_id, qrcode):
                 return False
 
-            ShipmentItemRepository.update_count_cur(shipment_id, current_count + 1, user_id)
+            ShipmentItemRepository.update_scanned(shipment_id, user_id)
 
             return True
 

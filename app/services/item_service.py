@@ -23,6 +23,10 @@ class ItemService:
         return ItemRepository.write_off(qrcode, user_id)
 
     @staticmethod
+    def refund(qrcode: str, user_id: int) -> Optional[int]:
+        return ItemRepository.refund(qrcode, user_id)
+
+    @staticmethod
     def shipment(qrcodes: list[str], worker_id: int) -> bool:
         return ItemRepository.shipment(qrcodes,worker_id)
 

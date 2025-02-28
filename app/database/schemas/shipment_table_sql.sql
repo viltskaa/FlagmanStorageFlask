@@ -1,14 +1,16 @@
 CREATE TABLE IF NOT EXISTS shipment_item (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     article TEXT NOT NULL,
-    count_cur INTEGER NOT NULL,
-    count_all INTEGER NOT NULL,
-    worker_id INTEGER REFERENCES worker(id),
+    orderUid TEXT NOT NULL,
+    worker_id INTEGER,
     created_date DATE DEFAULT (DATE('now')),
     created_time TIME DEFAULT (TIME('now')),
+    action_time TIME DEFAULT NULL,
     is_active TEXT DEFAULT 'RECEIVED' CHECK (is_active IN ('SHIPPED', 'RECEIVED', 'POSTPONED')),
+    scanned TEXT DEFAULT 'NOTSCANNED' CHECK (scanned IN ('NOTSCANNED','SCANNED')),
     for_this TEXT NOT NULL,
     FOREIGN KEY (for_this) REFERENCES tokens(name)
+    FOREIGN KEY (worker_id) REFERENCES worker(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_shipment_item_article ON shipment_item (article);

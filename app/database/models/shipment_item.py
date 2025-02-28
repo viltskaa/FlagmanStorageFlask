@@ -4,11 +4,11 @@ from datetime import date, time
 class ShipmentItem:
     id: int
     article: str
-    count_cur: int
-    count_all: int
+    orderUid: str
     for_this: str
     worker_id: int = 0
     created_date: date = None
     created_time: time = None
+    action_time: time = None
     is_active: str = "RECEIVED"
 

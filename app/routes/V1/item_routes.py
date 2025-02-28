@@ -112,12 +112,35 @@ def write_off():
         }), 500
 
     for row in data:
-        qrocde = row.get('code', None)
+        qrcode = row.get('code', None)
 
-        if qrocde is None:
+        if qrcode is None:
             continue
 
-        ItemService.write_off(qrocde,current_user_id)
+        ItemService.write_off(qrcode,current_user_id)
+
+    return jsonify({
+        "message": "List of scanned items processed successfully",
+    }), 200
+
+
+@item.route('/refund', methods=['POST'])
+@jwt_required()
+def refund():
+    data = request.get_json()
+    current_user_id = g.current_user["id"]
+    if not isinstance(data, list):
+        return jsonify({
+            "message": "Internal server error",
+        }), 500
+
+    for row in data:
+        qrcode = row.get('code', None)
+
+        if qrcode is None:
+            continue
+
+        ItemService.refund(qrcode,current_user_id)
 
     return jsonify({
         "message": "List of scanned items processed successfully",

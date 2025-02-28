@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 from flask import current_app
 from app.database import ShipmentItem
@@ -27,18 +28,18 @@ class ShipmentItemRepository:
             return None
 
     @staticmethod
-    def insert(article: str, count_all: int, date: datetime, status: str, for_this: str, worker_id: int = None) -> Optional[int]:
+    def insert(article: str, order_id: str, date: datetime, status: str, for_this: str, worker_id: int = None) -> Optional[int]:
         try:
             database = db.get_database()
             cursor = database.cursor()
 
             cursor.execute(
                 """
-                INSERT INTO shipment_item (article, count_cur, count_all, worker_id, created_date, created_time, is_active,
-                for_this)
-                VALUES (?, 0, ?, ?, DATE(?), TIME(?), ?,?)
+                INSERT INTO shipment_item (article, orderUid, worker_id, created_date, created_time, 
+                is_active, for_this)
+                VALUES (?, ?, ?, DATE(?), TIME(?), ?,?)
                 """,
-                (article, count_all,worker_id, date, date, status, for_this)
+                (article, order_id, worker_id, date, date, status, for_this)
             )
 
             database.commit()
@@ -49,19 +50,44 @@ class ShipmentItemRepository:
             return None
 
     @staticmethod
-    def get_all(tokens: list[str]) -> list[ShipmentItem]:
+    def get_all(tokens: list[str]) -> list[dict]:
         try:
             database = db.get_database()
             cursor = database.cursor()
             today_date = datetime.now().strftime('%Y-%m-%d')
 
             cursor.execute(f'''
-                SELECT id, article, count_cur, count_all, for_this, worker_id, created_date, created_time, is_active
+                SELECT orderUid, 
+                       json_group_array(
+                           json_object(
+                               'id', id,
+                               'article', article,
+                               'worker_id', worker_id,
+                               'created_date', created_date,
+                               'created_time', created_time,
+                               'is_active', is_active,
+                               'scanned', scanned,
+                               'for_this', for_this
+                           )
+                       ) AS items
                 FROM shipment_item
-                WHERE created_date = ? AND for_this IN ({','.join(['?'] * len(tokens))})  AND (is_active = 'RECEIVED' OR is_active = 'POSTPONED')
+                WHERE created_date = ? 
+                  AND for_this IN ({','.join(['?'] * len(tokens))})  
+                  AND (is_active = 'RECEIVED' OR is_active = 'POSTPONED')
+                GROUP BY orderUid
+                ORDER BY COUNT(*) ASC
             ''', (today_date, *tokens,))
             rows = cursor.fetchall()
-            return [ShipmentItem(*row) for row in rows]
+
+            result = []
+            for row in rows:
+                order_uid, items_json = row
+                result.append({
+                    "orderUid": order_uid,
+                    "items": json.loads(items_json),
+                })
+
+            return result
         except Exception as e:
             ShipmentItemRepository.last_error = e
             current_app.logger.error(e)
@@ -103,9 +129,10 @@ class ShipmentItemRepository:
             today_date = datetime.now().strftime('%Y-%m-%d')
 
             cursor.execute(
-                f"""SELECT id, article, count_cur, count_all, for_this 
+                f"""SELECT id, article, orderUid, scanned, for_this 
                    FROM shipment_item 
-                   WHERE article = ?  AND for_this IN ({','.join(['?'] * len(tokens))}) AND is_active = 'RECEIVED' OR is_active = 'POSTPONED' 
+                   WHERE article = ?  AND for_this IN ({','.join(['?'] * len(tokens))}) AND (is_active = 'RECEIVED' OR is_active = 'POSTPONED') 
+                   and scanned = 'NOTSCANNED'
                    AND created_date = ?""",
                 (article, *tokens, today_date),
             )
@@ -116,13 +143,13 @@ class ShipmentItemRepository:
             return None
 
     @staticmethod
-    def update_count_cur(shipment_id: int, new_count_cur: int,user_id: int) -> bool:
+    def update_scanned(shipment_id: int,user_id: int) -> bool:
         try:
             database = db.get_database()
             cursor = database.cursor()
             cursor.execute(
-                "UPDATE shipment_item SET count_cur = ?, worker_id=? WHERE id = ?",
-                (new_count_cur,user_id, shipment_id),
+                "UPDATE shipment_item SET scanned = 'SCANNED', worker_id=? WHERE id = ?",
+                (user_id, shipment_id),
             )
             database.commit()
             return cursor.rowcount > 0

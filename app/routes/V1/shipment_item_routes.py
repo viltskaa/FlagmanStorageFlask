@@ -47,43 +47,13 @@ def load_current_user():
 @jwt_required()
 def get_all():
     current_user_id = g.current_user["id"]
-    items = ShipmentItemService.get_all(current_user_id)
-    if items is None:
-        return jsonify({
-            "message": "Internal server error",
-        }), 500
-    item_list = [{
-        'id': item.id,
-        'article': item.article,
-        'count_cur': item.count_cur,
-        'count_all': item.count_all,
-        'status': item.is_active,
-        'for_this': item.for_this
-    } for item in items]
-    return jsonify(item_list)
-
-
-@shipment_item.route('/shipment_product', methods=['POST'])
-@jwt_required()
-def product_shipment_add(dfc: DisaiFileCasher):
-    data = request.get_json()
-
-    if isinstance(data, list):
+    grouped_items = ShipmentItemService.get_all(current_user_id)
+    if grouped_items is None:
         return jsonify({
             "message": "Internal server error",
         }), 500
 
-    gfc_entity = dfc.get_article(data.get('code'))
-    if gfc_entity is None:
-        return jsonify({
-            "message": "Необходим код",
-        }), 500
-
-    ShipmentItemService.insert(gfc_entity.article, data.get('count_all'), datetime.now(), 'RECEIVED',
-                               data.get('for_this'))
-    return jsonify({
-        "message": "shipment_item add success",
-    }), 200
+    return jsonify(grouped_items)
 
 
 @shipment_item.route('/checkShipmentItems', methods=['GET'])

@@ -24,17 +24,11 @@ class WBService:
 
             response = requests.get(wb_url, headers=headers)
             response.raise_for_status()
-            article_count = {}
             data = response.json()
             orders = data.get("orders", [])
 
             for order in orders:
-                article = order.get("article")
-                if article is not None:
-                    article_count[article] = article_count.get(article, 0) + 1
-
-            for article, count in article_count.items():
-                ShipmentItemService.insert(article, count, datetime.now(), 'RECEIVED', name)
+                ShipmentItemService.insert(order.get("article"), order.get("orderUid"), datetime.now(), 'RECEIVED', name)
 
         except requests.exceptions.HTTPError as http_err:
             error_message = f"HTTP error occurred: {http_err}"

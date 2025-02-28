@@ -102,6 +102,23 @@ class ItemRepository:
             return None
 
     @staticmethod
+    def refund(qrcode: str, user_id: int) -> Optional[int]:
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+
+            cursor.execute(
+                "UPDATE item SET status = 'REFUND' , worker_id = ? WHERE qrcode = ? AND (status = 'SHIPMENT' or "
+                "status = 'WRITEOFF')",
+                (user_id, qrcode,))
+            database.commit()
+            return cursor.lastrowid
+        except Exception as e:
+            ItemRepository.last_error = e
+            current_app.logger.error(e)
+            return None
+
+    @staticmethod
     def get_by_article(article: str) -> Optional[Item]:
         try:
             database = db.get_database()
