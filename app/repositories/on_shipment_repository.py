@@ -34,7 +34,20 @@ class OnShipmentRepository:
             current_app.logger.error(e)
             return None
 
-
+    @staticmethod
+    def remove_if_ids(shipments_ids: list[int]):
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            cursor.execute(f'''
+                                DELETE FROM on_shipment WHERE shipment_id IN ({','.join(['?'] * len(shipments_ids))})
+                               ''', shipments_ids,)
+            database.commit()
+            return True
+        except Exception as e:
+            OnShipmentRepository.last_error = e
+            current_app.logger.error(e)
+            return False
 
     @staticmethod
     def get_qrCodes(shipments_ids: list[int]) -> list[str]:

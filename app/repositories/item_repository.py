@@ -15,7 +15,7 @@ class ItemRepository:
         try:
             database = db.get_database()
             cursor = database.cursor()
-            cursor.execute("SELECT id, article, qrcode FROM item WHERE status = 'STORAGE'")
+            cursor.execute("SELECT id, article, qrcode FROM item")
             rows = cursor.fetchall()
             return [Item(*row) for row in rows]
         except Exception as e:

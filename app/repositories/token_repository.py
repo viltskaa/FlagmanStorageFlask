@@ -31,6 +31,24 @@ class TokenRepository:
             return None
 
     @staticmethod
+    def insert(name:str,token:str):
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+
+            cursor.execute(
+                "INSERT INTO tokens (name, token) VALUES (?, ?)",
+                (name, token)
+            )
+
+            database.commit()
+            return cursor.lastrowid
+        except Exception as e:
+            TokenRepository.last_error = e
+            current_app.logger.error(e)
+            return None
+
+    @staticmethod
     def get_all_tokens() -> list[Token]:
         try:
             database = db.get_database()

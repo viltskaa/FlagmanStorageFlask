@@ -75,7 +75,7 @@ class ShipmentItemRepository:
                   AND for_this IN ({','.join(['?'] * len(tokens))})  
                   AND (is_active = 'RECEIVED' OR is_active = 'POSTPONED')
                 GROUP BY orderUid
-                ORDER BY COUNT(*) ASC
+                ORDER BY scanned_time DESC
             ''', (today_date, *tokens,))
             rows = cursor.fetchall()
 
@@ -94,6 +94,27 @@ class ShipmentItemRepository:
             return []
 
     @staticmethod
+    def is_order_fully_scanned(tokens: list[str]):
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+
+            cursor.execute(
+                f"""SELECT si.orderUid
+                   FROM shipment_item si
+                   WHERE si.for_this IN ({','.join(['?'] * len(tokens))})
+                   AND si.is_active IN ('RECEIVED', 'POSTPONED') 
+                   GROUP BY si.orderUid
+                   HAVING COUNT(CASE WHEN si.scanned = 'SCANNED' THEN 1 END) = COUNT(si.id)"""
+                , (*tokens,)
+            )
+            row = cursor.fetchone()
+            return row is not None
+        except Exception as e:
+            current_app.logger.error(e)
+            return False
+
+    @staticmethod
     def get_all_by_period(date_start: datetime, date_end: datetime, status: str) -> list[ShipmentItem]:
         try:
             database = db.get_database()
@@ -102,7 +123,7 @@ class ShipmentItemRepository:
             date_end_datetime = date_end.strftime("%Y-%m-%d %H:%M:%S")
 
             cursor.execute("""
-                    SELECT id, article, count_cur,count_all,for_this,worker_id,created_date, created_time 
+                    SELECT id, article, orderUid,for_this,scanned,scanned_time,worker_id,created_date, created_time,action_time,is_active 
                     FROM shipment_item 
                     WHERE is_active = ?
                     AND (created_date || ' ' || created_time) BETWEEN ? AND ?
@@ -129,11 +150,17 @@ class ShipmentItemRepository:
             today_date = datetime.now().strftime('%Y-%m-%d')
 
             cursor.execute(
-                f"""SELECT id, article, orderUid, scanned, for_this 
-                   FROM shipment_item 
-                   WHERE article = ?  AND for_this IN ({','.join(['?'] * len(tokens))}) AND (is_active = 'RECEIVED' OR is_active = 'POSTPONED') 
-                   and scanned = 'NOTSCANNED'
-                   AND created_date = ?""",
+                f"""SELECT si.id, si.article, si.orderUid, si.for_this, si.scanned, si.scanned_time, COUNT(DISTINCT si2.article) AS unique_products_count
+                   FROM shipment_item si
+                   LEFT JOIN shipment_item si2 ON si.orderUid = si2.orderUid
+                   WHERE si.article = ?  
+                   AND si.for_this IN ({','.join(['?'] * len(tokens))})
+                   AND (si.is_active = 'RECEIVED' OR si.is_active = 'POSTPONED') 
+                   AND si.scanned = 'NOTSCANNED'
+                   AND si.created_date = ?
+                   GROUP BY si.orderUid, si.id, si.article, si.for_this, si.scanned, si.scanned_time
+                   ORDER BY unique_products_count ASC
+                   LIMIT 1""",
                 (article, *tokens, today_date),
             )
             row = cursor.fetchone()
@@ -145,14 +172,37 @@ class ShipmentItemRepository:
     @staticmethod
     def update_scanned(shipment_id: int,user_id: int) -> bool:
         try:
+            today_date = datetime.now()
             database = db.get_database()
             cursor = database.cursor()
             cursor.execute(
-                "UPDATE shipment_item SET scanned = 'SCANNED', worker_id=? WHERE id = ?",
-                (user_id, shipment_id),
+                "UPDATE shipment_item SET scanned = 'SCANNED', worker_id=?, scanned_time = ?  WHERE id = ?",
+                (user_id, today_date,shipment_id),
             )
             database.commit()
             return cursor.rowcount > 0
+        except Exception as e:
+            current_app.logger.error(e)
+            return False
+
+    @staticmethod
+    def update_status_of_ids(shipments_ids: list[int]) -> bool:
+        if not shipments_ids:
+            return False  # Защита от пустого списка
+
+        try:
+            today_date = "0000-12-31 00:00:00"
+            database = db.get_database()
+            cursor = database.cursor()
+
+            query = f'''UPDATE shipment_item 
+                        SET scanned = 'NOTSCANNED', scanned_time = ?  
+                        WHERE id IN ({','.join(['?'] * len(shipments_ids))})'''
+
+            cursor.execute(query, [today_date] + shipments_ids)
+
+            database.commit()
+            return True
         except Exception as e:
             current_app.logger.error(e)
             return False
@@ -194,6 +244,73 @@ class ShipmentItemRepository:
             return False
 
     @staticmethod
+    def get_ids_of_partially_scanned_items(user_id: int):
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            today_date = datetime.now().strftime('%Y-%m-%d')
+
+            query = """
+                        SELECT si.id
+                        FROM shipment_item si
+                        WHERE si.worker_id = ?
+                        AND si.created_date = ?
+                        AND si.is_active IN ('RECEIVED', 'POSTPONED') 
+                        AND si.scanned = 'SCANNED'
+                        AND si.orderUid IN (
+                            SELECT si2.orderUid
+                            FROM shipment_item si2
+                            WHERE si2.worker_id = ?
+                            AND si2.created_date = ?
+                            AND si2.is_active IN ('RECEIVED', 'POSTPONED')
+                            GROUP BY si2.orderUid
+                            HAVING COUNT(CASE WHEN si2.scanned = 'SCANNED' THEN 1 END) > 0
+                            AND COUNT(CASE WHEN si2.scanned != 'SCANNED' THEN 1 END) > 0
+                        )
+                    """
+
+            cursor.execute(query, (user_id, today_date, user_id, today_date))
+            ids = [row[0] for row in cursor.fetchall()]
+            return ids
+
+        except Exception as e:
+            current_app.logger.error(f"Database error: {e}")
+            return []
+
+    @staticmethod
+    def update_status_of_fully_scanned_items(user_id: int):
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            today_date = datetime.now().strftime('%Y-%m-%d')
+
+            cursor.execute(
+                """UPDATE shipment_item
+                   SET is_active = 'SHIPPED', worker_id = ?
+                   WHERE worker_id = ?
+                   AND created_date = ?
+                   AND is_active IN ('RECEIVED', 'POSTPONED')
+                   AND orderUid IN (
+                       SELECT si.orderUid
+                       FROM shipment_item si
+                       WHERE si.worker_id = ?
+                       AND si.created_date = ?
+                       AND si.is_active IN ('RECEIVED', 'POSTPONED')
+                       GROUP BY si.orderUid
+                       HAVING COUNT(*) = SUM(CASE WHEN si.scanned = 'SCANNED' THEN 1 ELSE 0 END)
+                   )""",
+                (user_id, user_id, today_date, user_id, today_date)
+            )
+
+            rows_affected = cursor.rowcount
+            database.commit()
+
+            return rows_affected > 0
+        except Exception as e:
+            current_app.logger.error(f"Error updating shipment items: {e}")
+            return False
+
+    @staticmethod
     def update_today(user_id: int):
         try:
             database = db.get_database()
@@ -213,7 +330,7 @@ class ShipmentItemRepository:
             return False
 
     @staticmethod
-    def get_all_true() -> list[int]:
+    def get_all_true(user_id: int) -> list[int]:
         try:
             database = db.get_database()
             cursor = database.cursor()
@@ -222,8 +339,8 @@ class ShipmentItemRepository:
             cursor.execute('''
                 SELECT id
                 FROM shipment_item
-                WHERE created_date = ? AND is_active = 'SHIPPED'
-            ''', (today_date,))
+                WHERE created_date = ? AND is_active = 'SHIPPED' AND worker_id = ?
+            ''', (today_date, user_id,))
             rows = cursor.fetchall()
             return [row[0] for row in rows]
         except Exception as e:

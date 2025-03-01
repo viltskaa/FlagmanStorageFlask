@@ -22,9 +22,9 @@ class ShipmentItemService:
     def get_all_by_period(date_start: datetime, date_end: datetime, status: str) -> list[ShipmentItem]:
         return ShipmentItemRepository.get_all_by_period(date_start, date_end, status)
     @staticmethod
-    def check_all_count_cur_equals_count_all(user_id: int) -> bool:
+    def check_all_fully_scanned(user_id: int) -> bool:
         tokens = WorkerService.get_tokens(user_id)
-        return ShipmentItemRepository.check_all_count_cur_equals_count_all(tokens)
+        return ShipmentItemRepository.is_order_fully_scanned(tokens)
 
     @staticmethod
     def process_qr_scan(qrcode: str, article: str, user_id: int) -> bool:
@@ -38,7 +38,7 @@ class ShipmentItemService:
             shipment_item = ShipmentItemRepository.get_active_shipment_by_article(article, tokens)
             if not shipment_item:
                 return False
-
+            print("я тут был")
             shipment_id = shipment_item.id
 
             if not OnShipmentService.insert(shipment_id, qrcode):
@@ -77,15 +77,22 @@ class ShipmentItemService:
     @staticmethod
     def shipment_all(user_id:int) -> bool:
         try:
-            if not ShipmentItemRepository.update_today(user_id):
+            if not ShipmentItemRepository.update_status_of_fully_scanned_items(user_id):
                 return False
-            shipment_ids = ShipmentItemRepository.get_all_true()
+            shipment_ids = ShipmentItemRepository.get_all_true(user_id)
             if not shipment_ids:
                 return False
             qr_codes = OnShipmentService.get_qrcodes(shipment_ids)
             if not qr_codes:
                 return False
             if not ItemService.shipment(qr_codes, user_id):
+                return False
+            not_shipment_ids = ShipmentItemRepository.get_ids_of_partially_scanned_items(user_id)
+            if not not_shipment_ids:
+                return False
+            if not OnShipmentService.remove_if_ids(not_shipment_ids):
+                return False
+            if not ShipmentItemRepository.update_status_of_ids(not_shipment_ids):
                 return False
             return True
         except Exception as e:

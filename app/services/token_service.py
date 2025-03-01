@@ -11,3 +11,7 @@ class TokenService:
     @staticmethod
     def get_tokens() -> list[Token]:
         return TokenRepository.get_all_tokens()
+
+    @staticmethod
+    def insert(name:str, token:str) -> Optional[int]:
+        return TokenRepository.insert(name, token)

@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS shipment_item (
     action_time TIME DEFAULT NULL,
     is_active TEXT DEFAULT 'RECEIVED' CHECK (is_active IN ('SHIPPED', 'RECEIVED', 'POSTPONED')),
     scanned TEXT DEFAULT 'NOTSCANNED' CHECK (scanned IN ('NOTSCANNED','SCANNED')),
+    scanned_time DATETIME NOT NULL DEFAULT '0000-12-31 00:00:00',
     for_this TEXT NOT NULL,
     FOREIGN KEY (for_this) REFERENCES tokens(name)
     FOREIGN KEY (worker_id) REFERENCES worker(id)

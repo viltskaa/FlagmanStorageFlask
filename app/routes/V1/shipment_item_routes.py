@@ -60,7 +60,7 @@ def get_all():
 @jwt_required()
 def check_shipment_items():
     current_user_id = g.current_user["id"]
-    all_items_valid = ShipmentItemService.check_all_count_cur_equals_count_all(current_user_id)
+    all_items_valid = ShipmentItemService.check_all_fully_scanned(current_user_id)
 
     if all_items_valid:
         return jsonify({"status": "true"}), 200
@@ -135,10 +135,10 @@ def get_storage():
 
         table = ShipmentItemService.get_all_by_period(datetime_start, datetime_end, status)
         print(table)
-        dataframe = pd.DataFrame(table, columns=['article', 'count_cur', 'count_all', 'for_this', 'created_date',
+        dataframe = pd.DataFrame(table, columns=['article', 'orderUid', 'action_time', 'for_this', 'created_date',
                                                  'created_time'])
 
-        dataframe.columns = ['Артикул', 'Отсканировано', 'Количество', 'Магазин', 'Дата', 'Время']
+        dataframe.columns = ['Артикул', 'Заказ', 'Время(если None - поступили)', 'Магазин', 'Дата', 'Время']
 
         return render_template(
             "ShipmentOrdersTable.html",

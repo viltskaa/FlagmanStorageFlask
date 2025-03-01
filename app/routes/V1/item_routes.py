@@ -187,13 +187,15 @@ def get_storage():
             return "Неверный формат даты", 400
 
         table = ItemService.get_all_by_period(datetime_start, datetime_end, status)
-        dataframe = pd.DataFrame(table, columns=['id', 'article', 'qrcode'])
-        dataframe = dataframe[['article']].value_counts().reset_index(name='Count')
-        dataframe.columns = ['Артикул', 'Количество']
+    else:
+        table = ItemService.get_all()
+    dataframe = pd.DataFrame(table, columns=['id', 'article', 'qrcode'])
+    dataframe = dataframe[['article']].value_counts().reset_index(name='Count')
+    dataframe.columns = ['Артикул', 'Количество']
 
-        return render_template(
-            "StorageTable.html",
-            table=dataframe.to_html(classes='table table-dark border rounded', justify='left', index=False)
-        )
+    return render_template(
+        "StorageTable.html",
+        table=dataframe.to_html(classes='table table-dark border rounded', justify='left', index=False)
+    )
 
     return render_template("StorageTable.html", table="")

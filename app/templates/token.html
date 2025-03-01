@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Добавить токен</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+
+<body class="p-2 vh-100 bg-dark">
+    <div class="container mt-4">
+        <h2 class="text-white">Добавление токена</h2>
+        <form id="tokenForm" class="bg-light p-4 rounded">
+            <div class="mb-3">
+                <label for="tokenName" class="form-label">Название токена:</label>
+                <input type="text" id="tokenName" name="tokenName" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label for="tokenValue" class="form-label">Значение токена:</label>
+                <input type="text" id="tokenValue" name="tokenValue" class="form-control" required>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="submitToken()">Добавить</button>
+        </form>
+    </div>
+
+    <script>
+        function validateTokenForm() {
+            let name = document.getElementById("tokenName").value;
+            let token = document.getElementById("tokenValue").value;
+
+            if (!name || !token) {
+                alert("Все поля должны быть заполнены!");
+                return false;
+            }
+            return true;
+        }
+
+        function submitToken() {
+            if (!validateTokenForm()) {
+                return;
+            }
+
+            let formData = {
+                name: document.getElementById("tokenName").value.toUpperCase(),
+                token: document.getElementById("tokenValue").value
+            };
+
+            fetch('/v1/token/insert', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // Если статус ответа не 200-299, пытаемся прочитать JSON с ошибкой
+                    return response.json().then(err => { throw err; });
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert(data.msg);
+                document.getElementById("tokenForm").reset();
+            })
+            .catch(error => {
+                alert('Ошибка при добавлении токена: ' + (error.error || error.message));
+            });
+        }
+    </script>
+</body>
+
+</html>
