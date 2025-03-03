@@ -36,7 +36,13 @@
                 </select>
                 <button type="button" class="btn btn-secondary mt-2" onclick="addToken()">Добавить</button>
             </div>
-
+            <div class="mb-3">
+                <label for="status_req" class="form-label">Статус:</label>
+                <select id="status_req" name="status" class="form-select" required>
+                    <option value="WORKMAN">Рабочий</option>
+                    <option value="BRIGADIER">Бригадир</option>
+                </select>
+            </div>
             <table class="table table-bordered bg-white">
                 <thead>
                     <tr>
@@ -109,69 +115,72 @@
         }
 
         function validateForm() {
-            let surname = document.getElementById("surname").value;
-            let name = document.getElementById("name").value;
-            let patronymic = document.getElementById("patronymic").value;
-            let password = document.getElementById("password").value;
-            let tokenTable = document.getElementById("tokenTableBody");
+    let surname = document.getElementById("surname").value;
+    let name = document.getElementById("name").value;
+    let patronymic = document.getElementById("patronymic").value;
+    let password = document.getElementById("password").value;
+    let tokenTable = document.getElementById("tokenTableBody");
+    let status = document.getElementById("status_req").value;
 
-            if (!surname || !name || !patronymic || !password) {
-                alert("Все поля должны быть заполнены!");
-                return false;
+    if (!surname || !name || !patronymic || !password || !status) {
+        alert("Все поля должны быть заполнены!");
+        return false;
+    }
+
+    let russianCharacters = /[а-яА-ЯЁё]/;
+    if (russianCharacters.test(surname) || russianCharacters.test(name) || russianCharacters.test(patronymic)) {
+        alert("ФИО должно быть написано транслитом (Пример : Ivanov Ivan Ivanovich)");
+        return false;
+    }
+    if (russianCharacters.test(password)) {
+        alert("Пароль не должен содержать русские символы!");
+        return false;
+    }
+
+    if (tokenTable.children.length === 0) {
+        alert("Необходимо добавить хотя бы один токен!");
+        return false;
+    }
+
+    return true;
+}
+
+function submitForm() {
+    if (!validateForm()) {
+        return;
+    }
+
+    let formData = {
+        name: document.getElementById("name").value.toLowerCase(),
+        surname: document.getElementById("surname").value.toLowerCase(),
+        patronymic: document.getElementById("patronymic").value.toLowerCase(),
+        password: document.getElementById("password").value.toLowerCase(),
+        role: document.getElementById("status_req").value,
+        tokens: Array.from(document.querySelectorAll("#tokenTableBody tr")).map(row => row.dataset.token)
+    };
+
+    fetch('/v1/auth/register', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert(data.msg);
+                // Показываем кнопку для генерации PDF
+                document.getElementById("generatePdfButton").style.display = "inline-block";
             }
+        })
+        .catch(error => {
+            alert('Ошибка при регистрации: ' + error.message);
+        });
+}
 
-            let russianCharacters = /[а-яА-ЯЁё]/;
-            if (russianCharacters.test(surname) || russianCharacters.test(name) || russianCharacters.test(patronymic)) {
-                alert("ФИО должно быть написано транслитом (Пример : Ivanov Ivan Ivanovich)");
-                return false;
-            }
-            if (russianCharacters.test(password)) {
-                alert("Пароль не должен содержать русские символы!");
-                return false;
-            }
-
-            if (tokenTable.children.length === 0) {
-                alert("Необходимо добавить хотя бы один токен!");
-                return false;
-            }
-
-            return true;
-        }
-
-        function submitForm() {
-            if (!validateForm()) {
-                return;
-            }
-
-            let formData = {
-                name: document.getElementById("name").value.toLowerCase(),
-                surname: document.getElementById("surname").value.toLowerCase(),
-                patronymic: document.getElementById("patronymic").value.toLowerCase(),
-                password: document.getElementById("password").value.toLowerCase(),
-                tokens: Array.from(document.querySelectorAll("#tokenTableBody tr")).map(row => row.dataset.token)
-            };
-
-            fetch('/v1/auth/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(formData)
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert(data.error);
-                    } else {
-                        alert(data.msg);
-                        // Показываем кнопку для генерации PDF
-                        document.getElementById("generatePdfButton").style.display = "inline-block";
-                    }
-                })
-                .catch(error => {
-                    alert('Ошибка при регистрации: ' + error.message);
-                });
-        }
 
         function generatePdf() {
             let formData = {

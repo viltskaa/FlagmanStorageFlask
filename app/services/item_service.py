@@ -54,3 +54,7 @@ class ItemService:
     def check_with_status_write_off(qrcode: str) -> bool:
         return ItemRepository.check_if_exists_and_status_write_off(qrcode)
 
+    @staticmethod
+    def check_with_status_refund(qrcode: str) -> bool:
+        return ItemRepository.check_to_refund(qrcode)
+

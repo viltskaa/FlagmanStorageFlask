@@ -56,12 +56,11 @@ def create_app():
     def fetch_all():
         with app.app_context():
             try:
-                WBService.fetch_orders('АЛИСА2')
-                WBService.fetch_orders('СЕВЕРНОЕ')
+                WBService.fetch_orders_for_all()
             except Exception as e:
                 app.logger.error(f"Scheduler error: {e}")
 
-    scheduler.add_job(fetch_all, 'cron', hour=10, minute=31)
+    scheduler.add_job(fetch_all, 'cron', hour=14, minute=23)
     scheduler.start()
 
     @click.command("manual-parse")

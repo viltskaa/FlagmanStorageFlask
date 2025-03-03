@@ -1,3 +1,5 @@
+from typing import Optional
+
 from app.repositories import WorkerRepository
 from app.database import Worker
 class WorkerService:
@@ -10,3 +12,7 @@ class WorkerService:
     @staticmethod
     def get_workers() -> list[Worker]:
         return WorkerRepository.get_all_users()
+
+    @staticmethod
+    def get_worker(full_name) -> Optional[dict]:
+        return WorkerRepository.get_by_full_name(full_name)

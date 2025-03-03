@@ -8,6 +8,12 @@ class WBService:
     BASE_URL = "https://marketplace-api.wildberries.ru/api/v3/orders/new"
 
     @staticmethod
+    def fetch_orders_for_all():
+        tokens = TokenService.get_tokens()
+        for item in tokens:
+            WBService.fetch_orders(item.name)
+
+    @staticmethod
     def fetch_orders(name: str):
         wb_url = WBService.BASE_URL
         response = None

@@ -34,7 +34,8 @@ class WorkerRepository:
                 worker = {
                     'id': worker_row[0],
                     'full_name':worker_row[1],
-                    'password':worker_row[2]
+                    'password':worker_row[2],
+                    'role':worker_row[3]
                 }
                 return worker
             return None
@@ -73,15 +74,15 @@ class WorkerRepository:
             return []
 
     @staticmethod
-    def insert(full_name: str, password: str) -> \
+    def insert(full_name: str, password: str,role:str) -> \
             Optional[int]:
         try:
             database = db.get_database()
             cursor = database.cursor()
 
             cursor.execute(
-                'INSERT INTO worker (full_name,password) VALUES (?, ?)',
-                (full_name,password, )
+                'INSERT INTO worker (full_name,password,role) VALUES (?, ?, ?)',
+                (full_name,password, role, )
             )
 
             database.commit()

@@ -11,13 +11,13 @@ bcrypt = Bcrypt()
 class AuthorizationService:
 
         @staticmethod
-        def register(name: str, surname: str, patronymic: str, password: str, ids: List[int]) -> Optional[int]:
+        def register(name: str, surname: str, patronymic: str, password: str, ids: List[int],role:str) -> Optional[int]:
             if not all([name, surname, patronymic]):
                 return None
 
             full_name = f"{surname} {name} {patronymic}"
 
-            worker_id = WorkerRepository.insert(full_name,password)
+            worker_id = WorkerRepository.insert(full_name,password,role)
             if worker_id:
                 WorkerRepository.insert_tokens(worker_id,ids)
                 return worker_id

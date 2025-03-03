@@ -52,7 +52,7 @@ def get_all():
         return jsonify({
             "message": "Internal server error",
         }), 500
-
+    print(grouped_items)
     return jsonify(grouped_items)
 
 
@@ -96,16 +96,17 @@ def scan_qr(dfc: DisaiFileCasher):
         return jsonify({"message": "Ошибка при обработке QR-кода"}), 400
 
 
-@shipment_item.route('/<int:item_id>', methods=['POST'])
+@shipment_item.route('/outOfStock', methods=['POST'])
 @jwt_required()
-def outOfStock(item_id):
-    current_user_id = g.current_user["id"]
-    success, message = ShipmentItemService.handle_out_of_stock(item_id, current_user_id)
-    print(message)
+def outOfStock():
+    data = request.get_json()
+    full_name = data.get('full_name')
+    print(full_name)
+    orderUid = data.get('orderUid')
+    success, message = ShipmentItemService.handle_out_of_stock(orderUid, full_name)
     if not success:
-        status_code = 404 if message == "Item not found" else 500
+        status_code = 404 if message == "Такого пользователя нет" else 500
         return jsonify({'error': message}), status_code
-
     return jsonify({'message': message}), 200
 
 
@@ -119,6 +120,17 @@ def shipping():
         return jsonify({'message': 'Success shiping'}), 200
     else:
         return jsonify({"message": "Internal server error"}), 500
+
+
+@shipment_item.route('/cancel/<string:orderUid>',methods = ['POST'])
+@jwt_required()
+def cancel(orderUid):
+    ship = ShipmentItemService.cancel(orderUid=orderUid)
+    if ship:
+        return jsonify({'message': 'Success cancel'}), 200
+    else:
+        return jsonify({"message": "Internal server error"}), 500
+
 
 
 @shipment_item.route('/list', methods=['GET'])

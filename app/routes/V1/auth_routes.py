@@ -19,14 +19,15 @@ def register():
         patronymic = data.get('patronymic', None)
         password = data.get('password', None)
         tokens = data.get('tokens',None)
-        if not all([name, surname,patronymic,password,tokens]):
+        role = data.get('role', None)
+        if not all([name, surname,patronymic,password,tokens,role]):
             return current_app.response_class(
                 response=json.dumps({'error': 'No params provided'}),
                 status=400,
                 mimetype='application/json'
             )
 
-        w_id = AuthorizationService.register(name, surname, patronymic,password,tokens)
+        w_id = AuthorizationService.register(name, surname, patronymic,password,tokens,role)
 
         if w_id:
             return current_app.response_class(

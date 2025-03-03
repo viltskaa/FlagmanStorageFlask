@@ -82,6 +82,23 @@ def check_storage():
     except Exception as e:
         return jsonify({"error": "Internal server error"}), 500
 
+@item.route('/check_refund', methods=['POST'])
+def check_refund():
+    try:
+        data = request.get_json()
+        qrcode = data.get('code')
+
+        if not qrcode:
+            return jsonify({"error": "QR code is required"}), 400
+
+        exists = ItemService.check_with_status_refund(qrcode)
+        if exists:
+            return jsonify({"exists": "true"}), 200
+        else:
+            return jsonify({"exists": "false"}), 200
+    except Exception as e:
+        return jsonify({"error": "Internal server error"}), 500
+
 
 @item.route('/check_write_off',methods=['POST'])
 def check_write_off():

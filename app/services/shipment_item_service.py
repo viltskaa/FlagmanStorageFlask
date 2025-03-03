@@ -53,27 +53,21 @@ class ShipmentItemService:
             return False
 
     @staticmethod
-    def handle_out_of_stock(item_id: int,worker_id: int) -> tuple[bool, str]:
-        shipment = ShipmentItemRepository.get_by_id(item_id)
-        if shipment is None:
-            return False, "Item not found"
-
-        tomorrow = datetime.now() + timedelta(days=1)
-        if shipment.is_active == 'POSTPONED':
-            return False, "Item has already been rescheduled 1 time"
-        print(shipment.id)
-        if not ShipmentItemRepository.insert(shipment.article, shipment.count_all - shipment.count_cur, tomorrow,
-                                             'POSTPONED', shipment.for_this,worker_id):
-            return False, "Failed to insert new Item in the database"
-
-        if shipment.count_cur == 0:
-            if not ShipmentItemRepository.delete(item_id):
-                return False, "Failed to delete Item in the database"
-        else:
-            if not ShipmentItemRepository.update_count_all(item_id, shipment.count_cur,worker_id):
-                return False, "Failed to update Item in the database"
-
-        return True, "Success"
+    def handle_out_of_stock(orderUid: str,full_name: str) -> tuple[bool, str]:
+        user = WorkerService.get_worker(full_name)
+        if not user:
+            return False,"Такого пользователя нет"
+        if user.get('role') != 'BRIGADIER':
+            return False, "Роль пользователя не бригадир"
+        worker_id = user.get('id')
+        if not ShipmentItemRepository.stock(orderUid,worker_id):
+            return False, "Не удалось осуществить перенос"
+        shipment_ids = ShipmentItemRepository.get_by_orderUid(orderUid)
+        if not shipment_ids:
+            return False, "Не удалось осуществить перенос"
+        if not OnShipmentService.remove_if_ids(shipment_ids):
+            return False, "Не удалось осуществить перенос"
+        return True, "Перенос успешен"
     @staticmethod
     def shipment_all(user_id:int) -> bool:
         try:
@@ -88,13 +82,30 @@ class ShipmentItemService:
             if not ItemService.shipment(qr_codes, user_id):
                 return False
             not_shipment_ids = ShipmentItemRepository.get_ids_of_partially_scanned_items(user_id)
-            if not not_shipment_ids:
-                return False
-            if not OnShipmentService.remove_if_ids(not_shipment_ids):
-                return False
-            if not ShipmentItemRepository.update_status_of_ids(not_shipment_ids):
-                return False
+            print(not_shipment_ids)
+            if not_shipment_ids:
+                if not OnShipmentService.remove_if_ids(not_shipment_ids):
+                    return False
+                if not ShipmentItemRepository.update_status_of_ids(not_shipment_ids):
+                    return False
             return True
         except Exception as e:
             current_app.logger.error(f"Ошибка в shipment_all: {e}")
             return False
+
+    @staticmethod
+    def cancel(orderUid: str) -> bool:
+        try:
+            if not ShipmentItemRepository.update_not_scanned(orderUid):
+                return False
+            shipment_ids = ShipmentItemRepository.get_by_orderUid(orderUid)
+            print(shipment_ids)
+            if not shipment_ids:
+                return False
+            if not OnShipmentService.remove_if_ids(shipment_ids):
+                return False
+            return True
+        except Exception as e:
+            current_app.logger.error(f"Ошибка в cancel: {e}")
+            return False
+

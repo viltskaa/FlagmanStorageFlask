@@ -2,30 +2,11 @@ import json
 from typing import Optional
 from flask import current_app
 from app.database import ShipmentItem
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.database import database as db
 
 class ShipmentItemRepository:
     last_error: Optional[Exception] = None
-
-    @staticmethod
-    def get_by_id(id: int) -> Optional[ShipmentItem]:
-        try:
-            database = db.get_database()
-            cursor = database.cursor()
-            cursor.execute('''
-                SELECT id, article, count_cur, count_all,for_this, worker_id, created_date, created_time, is_active
-                FROM shipment_item
-                WHERE id = ?
-            ''', (id,))
-            row = cursor.fetchone()
-            if row:
-                return ShipmentItem(*row)
-            return None
-        except Exception as e:
-            ShipmentItemRepository.last_error = e
-            current_app.logger.error(e)
-            return None
 
     @staticmethod
     def insert(article: str, order_id: str, date: datetime, status: str, for_this: str, worker_id: int = None) -> Optional[int]:
@@ -135,12 +116,6 @@ class ShipmentItemRepository:
             current_app.logger.error(e)
             return []
 
-    @staticmethod
-    def check_all_count_cur_equals_count_all(tokens: list[str]):
-        items = ShipmentItemRepository.get_all(tokens)
-        if not items:
-            return False
-        return all(item.count_cur == item.count_all for item in items)
 
     @staticmethod
     def get_active_shipment_by_article(article: str, tokens: list[str]):
@@ -224,24 +199,6 @@ class ShipmentItemRepository:
             current_app.logger.error(f"Ошибка удаления: {e}")
             return False
 
-    @staticmethod
-    def update_count_all(item_id: int, count_all: int,worker_id: int) -> bool:
-        try:
-            database = db.get_database()
-            cursor = database.cursor()
-
-            cursor.execute('''
-                UPDATE shipment_item
-                SET count_all = ?, worker_id = ?
-                WHERE id = ? AND is_active = 'RECEIVED'
-            ''', (count_all,worker_id, item_id))
-
-            database.commit()
-            return True
-        except Exception as e:
-            ShipmentItemRepository.last_error = e
-            current_app.logger.error(f"Ошибка обновления count_all: {e}")
-            return False
 
     @staticmethod
     def get_ids_of_partially_scanned_items(user_id: int):
@@ -253,15 +210,13 @@ class ShipmentItemRepository:
             query = """
                         SELECT si.id
                         FROM shipment_item si
-                        WHERE si.worker_id = ?
-                        AND si.created_date = ?
+                        WHERE si.created_date = ?
                         AND si.is_active IN ('RECEIVED', 'POSTPONED') 
                         AND si.scanned = 'SCANNED'
                         AND si.orderUid IN (
                             SELECT si2.orderUid
                             FROM shipment_item si2
-                            WHERE si2.worker_id = ?
-                            AND si2.created_date = ?
+                            WHERE  si2.created_date = ?
                             AND si2.is_active IN ('RECEIVED', 'POSTPONED')
                             GROUP BY si2.orderUid
                             HAVING COUNT(CASE WHEN si2.scanned = 'SCANNED' THEN 1 END) > 0
@@ -269,12 +224,71 @@ class ShipmentItemRepository:
                         )
                     """
 
-            cursor.execute(query, (user_id, today_date, user_id, today_date))
+            cursor.execute(query, (today_date, today_date))
             ids = [row[0] for row in cursor.fetchall()]
             return ids
 
         except Exception as e:
             current_app.logger.error(f"Database error: {e}")
+            return []
+
+    @staticmethod
+    def update_not_scanned(orderUid: str) -> bool:
+        try:
+            today_date = "0000-12-31 00:00:00"
+            database = db.get_database()
+            cursor = database.cursor()
+
+            query = '''UPDATE shipment_item 
+                            SET scanned = 'NOTSCANNED', scanned_time = ?  
+                            WHERE orderUid = ?'''
+
+            cursor.execute(query, (today_date,orderUid))
+
+            database.commit()
+            return True
+        except Exception as e:
+            current_app.logger.error(e)
+            return False
+
+    @staticmethod
+    def stock(orderUid: str,worker_id:int) -> bool:
+        try:
+            date = "0000-12-31 00:00:00"
+            tomorrow = datetime.now() + timedelta(days=1)
+            database = db.get_database()
+            cursor = database.cursor()
+
+            query = '''UPDATE shipment_item 
+                                SET scanned = 'NOTSCANNED', worker_id = ?, is_active = 'POSTPONED',
+                                created_date = ?, scanned_time = ?  
+                                WHERE orderUid = ? AND is_active='RECEIVED' '''
+
+            cursor.execute(query, (worker_id, tomorrow, date, orderUid))
+
+            database.commit()
+            return True
+        except Exception as e:
+            current_app.logger.error(e)
+            return False
+
+    @staticmethod
+    def get_by_orderUid(orderUid: str) -> list[int]:
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            cursor.execute('''
+                    SELECT id
+                    FROM shipment_item
+                    WHERE orderUid = ?
+                ''', (orderUid,))
+            rows = cursor.fetchall()
+            if rows:
+                return [row[0] for row in rows]
+            return []
+        except Exception as e:
+            ShipmentItemRepository.last_error = e
+            current_app.logger.error(e)
             return []
 
     @staticmethod
@@ -286,47 +300,27 @@ class ShipmentItemRepository:
 
             cursor.execute(
                 """UPDATE shipment_item
-                   SET is_active = 'SHIPPED', worker_id = ?
-                   WHERE worker_id = ?
-                   AND created_date = ?
+                   SET is_active = 'SHIPPED', worker_id = ?, action_time = ?
+                   WHERE created_date = ?
                    AND is_active IN ('RECEIVED', 'POSTPONED')
                    AND orderUid IN (
-                       SELECT si.orderUid
-                       FROM shipment_item si
-                       WHERE si.worker_id = ?
-                       AND si.created_date = ?
-                       AND si.is_active IN ('RECEIVED', 'POSTPONED')
-                       GROUP BY si.orderUid
-                       HAVING COUNT(*) = SUM(CASE WHEN si.scanned = 'SCANNED' THEN 1 ELSE 0 END)
-                   )""",
-                (user_id, user_id, today_date, user_id, today_date)
+                        SELECT si.orderUid
+                        FROM shipment_item si
+                        WHERE si.created_date = ?
+                        GROUP BY si.orderUid
+                        HAVING COUNT(si.id) = SUM(CASE WHEN si.scanned = 'SCANNED' THEN 1 ELSE 0 END)
+                    )
+                   RETURNING id""",
+                (user_id, today_date, today_date, today_date)
             )
 
-            rows_affected = cursor.rowcount
-            database.commit()
-
-            return rows_affected > 0
-        except Exception as e:
-            current_app.logger.error(f"Error updating shipment items: {e}")
-            return False
-
-    @staticmethod
-    def update_today(user_id: int):
-        try:
-            database = db.get_database()
-            cursor = database.cursor()
-            today_date = datetime.now().strftime('%Y-%m-%d')
-
-            cursor.execute('''
-                UPDATE shipment_item
-                SET is_active = 'SHIPPED',worker_id=?
-                WHERE created_date = ? AND count_cur = count_all
-            ''', (user_id, today_date,))
+            updated_ids = cursor.fetchall()
+            print("Обновленные ID:", updated_ids)
             database.commit()
             return True
         except Exception as e:
-            ShipmentItemRepository.last_error = e
-            current_app.logger.error(f"Ошибка обновления is_active: {e}")
+
+            current_app.logger.error(f"Error updating shipment items: {e}")
             return False
 
     @staticmethod

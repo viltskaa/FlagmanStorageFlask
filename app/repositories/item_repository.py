@@ -108,8 +108,8 @@ class ItemRepository:
             cursor = database.cursor()
 
             cursor.execute(
-                "UPDATE item SET status = 'REFUND' , worker_id = ? WHERE qrcode = ? AND (status = 'SHIPMENT' or "
-                "status = 'WRITEOFF')",
+                "UPDATE item SET status = 'REFUND', worker_id = ? WHERE qrcode = ? AND status IN ('SHIPMENT', "
+                "'WRITEOFF')",
                 (user_id, qrcode,))
             database.commit()
             return cursor.lastrowid
@@ -172,6 +172,23 @@ class ItemRepository:
             database = db.get_database()
             cursor = database.cursor()
             cursor.execute('SELECT id FROM item WHERE qrcode = ? AND (status = "WRITEOFF" OR status = "SHIPMENT")',
+                           (qrcode,))
+            row = cursor.fetchone()
+            if row:
+                print(row[0])
+                return True
+            return False
+        except Exception as e:
+            ItemRepository.last_error = e
+            current_app.logger.error(e)
+            return False
+
+    @staticmethod
+    def check_to_refund(qrcode: str) -> bool:
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+            cursor.execute('SELECT id FROM item WHERE qrcode = ? AND (status = "REFUND" OR status = "STORAGE")',
                            (qrcode,))
             row = cursor.fetchone()
             if row:
