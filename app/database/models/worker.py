@@ -6,3 +6,4 @@ class Worker:
     id: int
     full_name: str
     password: str
+    role:str

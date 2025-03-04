@@ -255,7 +255,7 @@ class ShipmentItemRepository:
     def stock(orderUid: str,worker_id:int) -> bool:
         try:
             date = "0000-12-31 00:00:00"
-            tomorrow = datetime.now() + timedelta(days=1)
+            tomorrow = (datetime.now() + timedelta(days=1)).date()
             database = db.get_database()
             cursor = database.cursor()
 
