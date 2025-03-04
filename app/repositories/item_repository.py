@@ -171,7 +171,7 @@ class ItemRepository:
         try:
             database = db.get_database()
             cursor = database.cursor()
-            cursor.execute('SELECT id FROM item WHERE qrcode = ? AND (status = "WRITEOFF" OR status = "SHIPMENT")',
+            cursor.execute('SELECT id FROM item WHERE qrcode = ? AND (status = "WRITEOFF" OR status = "SHIPMENT" OR status="REFUND")',
                            (qrcode,))
             row = cursor.fetchone()
             if row:
