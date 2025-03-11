@@ -10,8 +10,13 @@ from app.repositories import ShipmentItemRepository
 
 class ShipmentItemService:
     @staticmethod
-    def insert(article: str, order_id: str, date: datetime, status: str, for_this: str) -> Optional[int]:
-        return ShipmentItemRepository.insert(article, order_id, date, status, for_this)
+    def get_order_by_qrcode(qrcode: str) -> Optional[int]:
+        shipment_id = OnShipmentService.get_shipment_id_by_qrcode(qrcode)
+        return ShipmentItemRepository.get_shipment_id(shipment_id)
+
+    @staticmethod
+    def insert(shipment_id: int, article: str, order_id: str, date: datetime, status: str, for_this: str) -> Optional[int]:
+        return ShipmentItemRepository.insert(shipment_id, article, order_id, date, status, for_this)
 
     @staticmethod
     def get_all(worker_id: int) -> list[dict]:

@@ -9,18 +9,37 @@ class ShipmentItemRepository:
     last_error: Optional[Exception] = None
 
     @staticmethod
-    def insert(article: str, order_id: str, date: datetime, status: str, for_this: str, worker_id: int = None) -> Optional[int]:
+    def get_shipment_id(id: int) -> Optional[int]:
+        """
+        По id из shipment_item получение shipment_id из shipment_item
+        """
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+
+            cursor.execute("SELECT shipment_id FROM shipment_item WHERE id = ?", (id))
+
+            database.commit()
+            return cursor.fetchone() is None
+        except Exception as e:
+            ShipmentItemRepository.last_error = e
+            current_app.logger.error(e)
+            return None
+
+
+    @staticmethod
+    def insert(shipment_id: int, article: str, order_id: str, date: datetime, status: str, for_this: str, worker_id: int = None) -> Optional[int]:
         try:
             database = db.get_database()
             cursor = database.cursor()
 
             cursor.execute(
                 """
-                INSERT INTO shipment_item (article, orderUid, worker_id, created_date, created_time, 
+                INSERT INTO shipment_item (shipment_id, article, orderUid, worker_id, created_date, created_time, 
                 is_active, for_this)
-                VALUES (?, ?, ?, DATE(?), TIME(?), ?,?)
+                VALUES (?, ?, ?, ?, DATE(?), TIME(?), ?,?)
                 """,
-                (article, order_id, worker_id, date, date, status, for_this)
+                (shipment_id, article, order_id, worker_id, date, date, status, for_this)
             )
 
             database.commit()

@@ -5,6 +5,7 @@ from datetime import date, time, datetime
 @dataclass
 class ShipmentItem:
     id: int
+    shipment_id: int
     article: str
     orderUid: str
     for_this: str

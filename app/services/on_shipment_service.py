@@ -17,3 +17,7 @@ class OnShipmentService:
     @staticmethod
     def get_qrcodes(ids: list[int]) -> list[str]:
         return OnShipmentRepository.get_qrCodes(ids)
+    
+    @staticmethod
+    def get_shipment_id_by_qrcode(qrcode: str) -> Optional[int]:
+        return OnShipmentRepository.get_get_shipment_id_by_qrcode(qrcode)

@@ -17,6 +17,37 @@ shipment_item: flask.blueprints.Blueprint = Blueprint('shipment_item', __name__)
 
 OPEN_ROUTES = {"/v1/shipment_item/list", "/v1/shipment_item/tokens"}
 
+@shipment_item.route('/scanQrOnPallete', methods=['POST'])
+@jwt_required()
+def scan_qr(dfc: DisaiFileCasher):
+    data = request.get_json()
+    qrcode = data.get('qrcode')
+    
+    current_user_id = g.current_user["id"]
+    if not qrcode:
+        return jsonify({"message": "qrcode обязателен"}), 400
+    
+    order = ShipmentItemService.get_order_by_qrcode(qrcode)
+    
+
+    qrcode_data = qrcode.split(",")
+    gtin = qrcode_data[0][4:]
+
+    gfc_entity = dfc.get_article(gtin)
+
+    if gfc_entity is None:
+        return jsonify({
+            "message": "Article is't founded"
+        }), 404
+    article = gfc_entity.article
+
+    success = ShipmentItemService.process_qr_scan(qrcode, article, current_user_id)
+
+    if success:
+        return jsonify({"message": "QR-код успешно обработан"}), 200
+    else:
+        return jsonify({"message": "Ошибка при обработке QR-кода"}), 400
+
 
 @shipment_item.errorhandler(jwt.InvalidTokenError)
 def handle_invalid_token(error):
