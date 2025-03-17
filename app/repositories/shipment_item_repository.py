@@ -9,15 +9,12 @@ class ShipmentItemRepository:
     last_error: Optional[Exception] = None
 
     @staticmethod
-    def get_shipment_id(id: int) -> Optional[int]:
-        """
-        По id из shipment_item получение shipment_id из shipment_item
-        """
+    def get_order_id(id: int) -> Optional[int]:
         try:
             database = db.get_database()
             cursor = database.cursor()
 
-            cursor.execute("SELECT shipment_id FROM shipment_item WHERE id = ?", (id))
+            cursor.execute("SELECT order_id FROM shipment_item WHERE id = ?", id)
 
             database.commit()
             return cursor.fetchone() is None

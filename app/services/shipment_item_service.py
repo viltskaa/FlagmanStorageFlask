@@ -12,7 +12,7 @@ class ShipmentItemService:
     @staticmethod
     def get_order_by_qrcode(qrcode: str) -> Optional[int]:
         shipment_id = OnShipmentService.get_shipment_id_by_qrcode(qrcode)
-        return ShipmentItemRepository.get_shipment_id(shipment_id)
+        return ShipmentItemRepository.get_order_id(shipment_id)
 
     @staticmethod
     def insert(shipment_id: int, article: str, order_id: str, date: datetime, status: str, for_this: str) -> Optional[int]:

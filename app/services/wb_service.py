@@ -9,27 +9,29 @@ class WBService:
     STICKERS_URL = "https://marketplace-api.wildberries.ru/api/v3/orders/stickers"
 
     @staticmethod
-    def get_sticker(order: int):
-        wb_url = WBService.BASE_URL
+    def get_sticker(order: int) -> str | None:
+        wb_url = WBService.STICKERS_URL
         response = None
 
         try:
-            token = TokenService.get_token_by_name(name)
-            if not token:
-                raise Exception(f"Token with name '{name}' not found in database")
+            tokens = TokenService.get_tokens()
+            for token in tokens:
+                headers = {
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                }
+                body = {
+                    'orders': [order]
+                }
+                response = requests.get(wb_url, headers=headers, json=body)
+                response.raise_for_status()
+                data = response.json()
+                stickers = data.get("stickers", [])
+                if len(stickers) == 0:
+                    continue
 
-            headers = {
-                'Authorization': token,
-                'Content-Type': 'application/json'
-            }
-
-            response = requests.get(wb_url, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-            orders = data.get("orders", [])
-
-            for order in orders:
-                ShipmentItemService.insert(order.get("article"), order.get("orderUid"), datetime.now(), 'RECEIVED', name)
+                for sticker in stickers:
+                    return sticker
 
         except requests.exceptions.HTTPError as http_err:
             error_message = f"HTTP error occurred: {http_err}"

@@ -5,8 +5,7 @@ import pandas as pd
 from flask import Response
 from datetime import datetime, timedelta
 from app.repositories import WorkerRepository
-from app.services import ShipmentItemService, TokenService
-from flask import Blueprint, jsonify, request, render_template
+from app.services import ShipmentItemService, TokenService, WBService
 from app.utils.DisaiFileCacher.disai_file_casher import DisaiFileCasher
 from flask import Blueprint, jsonify, request, g, render_template, abort
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
@@ -17,34 +16,20 @@ shipment_item: flask.blueprints.Blueprint = Blueprint('shipment_item', __name__)
 
 OPEN_ROUTES = {"/v1/shipment_item/list", "/v1/shipment_item/tokens"}
 
-@shipment_item.route('/scanQrOnPallete', methods=['POST'])
+@shipment_item.route('/scanQrOnPalet', methods=['POST'])
 @jwt_required()
-def scan_qr(dfc: DisaiFileCasher):
+def scan_qr():
     data = request.get_json()
     qrcode = data.get('qrcode')
-    
-    current_user_id = g.current_user["id"]
+
     if not qrcode:
         return jsonify({"message": "qrcode обязателен"}), 400
     
     order = ShipmentItemService.get_order_by_qrcode(qrcode)
-    
+    sticker = WBService.get_sticker(order)
 
-    qrcode_data = qrcode.split(",")
-    gtin = qrcode_data[0][4:]
-
-    gfc_entity = dfc.get_article(gtin)
-
-    if gfc_entity is None:
-        return jsonify({
-            "message": "Article is't founded"
-        }), 404
-    article = gfc_entity.article
-
-    success = ShipmentItemService.process_qr_scan(qrcode, article, current_user_id)
-
-    if success:
-        return jsonify({"message": "QR-код успешно обработан"}), 200
+    if sticker is not None:
+        return jsonify({"sticker": sticker}), 200
     else:
         return jsonify({"message": "Ошибка при обработке QR-кода"}), 400
 
