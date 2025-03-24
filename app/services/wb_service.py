@@ -101,7 +101,7 @@ class WBService:
                 order_id = order.get("id")
                 order_status = status_orders.get(order_id, {}).get("supplierStatus")
                 print(order_status)
-                if order_status == "complete":
+                if order_status == "confirm":
                     ShipmentItemService.insert(
                         order_id,
                         order.get("article"),
