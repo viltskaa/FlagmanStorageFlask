@@ -60,7 +60,7 @@ def create_app():
             except Exception as e:
                 app.logger.error(f"Scheduler error: {e}")
 
-    scheduler.add_job(fetch_all, 'cron', hour=14, minute=23)
+    scheduler.add_job(fetch_all, 'cron', hour=13, minute=15)
     scheduler.start()
 
     @click.command("manual-parse")

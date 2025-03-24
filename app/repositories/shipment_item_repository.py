@@ -14,10 +14,9 @@ class ShipmentItemRepository:
             database = db.get_database()
             cursor = database.cursor()
 
-            cursor.execute("SELECT order_id FROM shipment_item WHERE id = ?", id)
-
-            database.commit()
-            return cursor.fetchone() is None
+            cursor.execute("SELECT order_id FROM shipment_item WHERE id = ?", (id,))
+            result = cursor.fetchone()
+            return result[0] if result else None
         except Exception as e:
             ShipmentItemRepository.last_error = e
             current_app.logger.error(e)
@@ -32,7 +31,7 @@ class ShipmentItemRepository:
 
             cursor.execute(
                 """
-                INSERT INTO shipment_item (shipment_id, article, orderUid, worker_id, created_date, created_time, 
+                INSERT INTO shipment_item (order_id, article, orderUid, worker_id, created_date, created_time, 
                 is_active, for_this)
                 VALUES (?, ?, ?, ?, DATE(?), TIME(?), ?,?)
                 """,
@@ -358,6 +357,21 @@ class ShipmentItemRepository:
             current_app.logger.error(e)
             return []
 
+    def check(id: int) -> bool:
+        database = db.get_database()
+        cursor = database.cursor()
+        cursor.execute('''
+        SELECT CASE WHEN is_active = 'SHIPPED' THEN 1 ELSE 0 END FROM shipment_item WHERE id = ?
+        ''', (id,))
+
+        result = cursor.fetchone()
+        if result is None:
+            return False
+
+        if result[0] == 1:
+            return True
+        else:
+            return False
 
 
 

@@ -7,12 +7,16 @@ class OnShipmentRepository:
     last_error: Optional[Exception] = None
 
     @staticmethod
-    def get_get_shipment_id_by_qrcode(qrcode: str) -> Optional[int]:
+    def get_shipment_id_by_qrcode(qrcode: str) -> Optional[int]:
         try:
             database = db.get_database()
             cursor = database.cursor()
-            cursor.execute("SELECT shipment_id FROM on_shipment WHERE qrcode = ?", (qrcode))
-            return cursor.fetchone() is None
+            cursor.execute("SELECT shipment_id FROM on_shipment WHERE qrcode = ?", (qrcode,))
+            result = cursor.fetchone()
+            if result:
+                return result[0]
+            else:
+                return None
         except Exception as e:
             OnShipmentRepository.last_error = e
             current_app.logger.error(e)

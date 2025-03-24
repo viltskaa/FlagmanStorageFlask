@@ -1,7 +1,10 @@
+import ast
+
 import jwt
 import json
 import flask
 import pandas as pd
+import requests
 from flask import Response
 from datetime import datetime, timedelta
 from app.repositories import WorkerRepository
@@ -15,23 +18,47 @@ from werkzeug.exceptions import Unauthorized
 shipment_item: flask.blueprints.Blueprint = Blueprint('shipment_item', __name__)
 
 OPEN_ROUTES = {"/v1/shipment_item/list", "/v1/shipment_item/tokens"}
-
+PRINTER_URL = 'http://192.168.172.149:8000/print'
 @shipment_item.route('/scanQrOnPalet', methods=['POST'])
 @jwt_required()
-def scan_qr():
+def scan_qr_pallet():
     data = request.get_json()
     qrcode = data.get('qrcode')
 
     if not qrcode:
         return jsonify({"message": "qrcode обязателен"}), 400
-    
+    status = ShipmentItemService.check_is_shipment(qrcode)
+    if not status:
+        return jsonify({"message": "продукт еще не отгружен"}), 400
     order = ShipmentItemService.get_order_by_qrcode(qrcode)
     sticker = WBService.get_sticker(order)
+    if sticker is None:
+        return jsonify({"message": "Нет стикера"}), 400
+    file=sticker.get('file',"")
+    response = None
+    try:
+        body = {
+            "image": file
+        }
+        response = requests.post(PRINTER_URL, json=body)
+        response.raise_for_status()
+        data = response.json()
+        return jsonify({"message": data.get("message")}), 200
+    except requests.exceptions.HTTPError as http_err:
+        error_message = f"HTTP error occurred: {http_err}"
+        if response is not None:
+            error_message += f" - Response: {response.text}"
+        print(error_message)
+        return jsonify({
+            "message": error_message
+        }), 500
 
-    if sticker is not None:
-        return jsonify({"sticker": sticker}), 200
-    else:
-        return jsonify({"message": "Ошибка при обработке QR-кода"}), 400
+    except Exception as err:
+        print(err)
+        return jsonify({
+            "message": f"An error occurred: {err}"
+        }), 500
+
 
 
 @shipment_item.errorhandler(jwt.InvalidTokenError)

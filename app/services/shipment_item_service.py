@@ -15,6 +15,12 @@ class ShipmentItemService:
         return ShipmentItemRepository.get_order_id(shipment_id)
 
     @staticmethod
+    def check_is_shipment(qrcode: str) -> bool:
+        shipment_id = OnShipmentService.get_shipment_id_by_qrcode(qrcode)
+        print(shipment_id)
+        return ShipmentItemRepository.check(shipment_id)
+
+    @staticmethod
     def insert(shipment_id: int, article: str, order_id: str, date: datetime, status: str, for_this: str) -> Optional[int]:
         return ShipmentItemRepository.insert(shipment_id, article, order_id, date, status, for_this)
 

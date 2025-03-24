@@ -20,4 +20,4 @@ class OnShipmentService:
     
     @staticmethod
     def get_shipment_id_by_qrcode(qrcode: str) -> Optional[int]:
-        return OnShipmentRepository.get_get_shipment_id_by_qrcode(qrcode)
+        return OnShipmentRepository.get_shipment_id_by_qrcode(qrcode)

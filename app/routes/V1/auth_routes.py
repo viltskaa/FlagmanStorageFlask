@@ -116,6 +116,7 @@ def refresh() -> Response:
     surname = data.get("surname", None)
     patronymic = data.get("patronymic", None)
     token = AuthorizationService.refresh(name,surname,patronymic)
+    print(token)
     if token:
         return current_app.response_class(
             response=json.dumps({"msg": "Обновленная сессия", "token": token}),
