@@ -151,11 +151,11 @@ class ItemRepository:
             return False
 
     @staticmethod
-    def check_if_exists_and_status(qrcode: str) -> bool:
+    def check_if_exists_and_status(qrcode: str,status:str) -> bool:
         try:
             database = db.get_database()
             cursor = database.cursor()
-            cursor.execute('SELECT id FROM item WHERE qrcode = ? AND status = "STORAGE"', (qrcode,))
+            cursor.execute('SELECT id FROM item WHERE qrcode = ? AND status = ?', (qrcode,status,))
             row = cursor.fetchone()
             if row:
                 print(row[0])
@@ -167,50 +167,78 @@ class ItemRepository:
             return False
 
     @staticmethod
-    def check_if_exists_and_status_write_off(qrcode: str) -> bool:
+    def check_if_exists_and_status_write_off(qrcode: str) -> Optional[bool]:
         try:
             database = db.get_database()
             cursor = database.cursor()
-            cursor.execute('SELECT id FROM item WHERE qrcode = ? AND (status = "WRITEOFF" OR status = "SHIPMENT" OR status="REFUND")',
-                           (qrcode,))
+
+            cursor.execute('SELECT status FROM item WHERE qrcode = ?', (qrcode,))
             row = cursor.fetchone()
+
             if row:
-                print(row[0])
-                return True
-            return False
+                status = row[0]
+                if status in ("WRITEOFF", "SHIPMENT","TO_SHIP" "REFUND"):
+                    return True
+                return False
+            return None
+
         except Exception as e:
             ItemRepository.last_error = e
             current_app.logger.error(e)
-            return False
+            return None
 
     @staticmethod
-    def check_to_refund(qrcode: str) -> bool:
+    def check_to_refund(qrcode: str) -> Optional[bool]:
         try:
             database = db.get_database()
             cursor = database.cursor()
-            cursor.execute('SELECT id FROM item WHERE qrcode = ? AND (status = "REFUND" OR status = "STORAGE")',
-                           (qrcode,))
+
+            cursor.execute('SELECT status FROM item WHERE qrcode = ?', (qrcode,))
             row = cursor.fetchone()
+
             if row:
-                print(row[0])
-                return True
-            return False
+                status = row[0]
+                if status in ("REFUND", "STORAGE","TO_SHIP"):
+                    return True
+                return False
+            return None
+
         except Exception as e:
             ItemRepository.last_error = e
             current_app.logger.error(e)
-            return False
+            return None
 
     @staticmethod
-    def shipment(qrcodes: list[str],worker_id: int) -> bool:
+    def to_shipment(qrcodes: list[str],worker_id: int) -> bool:
         try:
             database = db.get_database()
             cursor = database.cursor()
 
             cursor.execute(f'''
                         UPDATE item 
-                        SET status = 'SHIPMENT', worker_id = ? 
+                        SET status = 'TO_SHIP', worker_id = ? 
                         WHERE qrcode IN ({','.join(['?'] * len(qrcodes))})
                     ''', (worker_id, *qrcodes))
+            database.commit()
+            print(True)
+            return True
+        except Exception as e:
+            ItemRepository.last_error = e
+            current_app.logger.error(e)
+            print(False)
+            return False
+
+    @staticmethod
+    def shipment(qrcodes: list[str], worker_id: int) -> bool:
+        try:
+            database = db.get_database()
+            cursor = database.cursor()
+
+            cursor.execute(f'''
+                            UPDATE item 
+                            SET status = 'SHIPPED', worker_id = ? 
+                            WHERE qrcode IN ({','.join(['?'] * len(qrcodes))})
+                        ''', (worker_id, *qrcodes))
             database.commit()
             print(True)
             return True

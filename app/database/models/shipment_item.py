@@ -10,6 +10,7 @@ class ShipmentItem:
     orderUid: str
     for_this: str
     scanned: str
+    supply_id: str
     scanned_time: datetime
     worker_id: int = 0
     created_date: date = None

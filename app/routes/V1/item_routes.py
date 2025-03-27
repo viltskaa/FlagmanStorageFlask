@@ -92,7 +92,9 @@ def check_refund():
             return jsonify({"error": "QR code is required"}), 400
 
         exists = ItemService.check_with_status_refund(qrcode)
-        if exists:
+        if exists is None:
+            return jsonify({"exists": "not_found"}), 200
+        elif exists:
             return jsonify({"exists": "true"}), 200
         else:
             return jsonify({"exists": "false"}), 200
@@ -109,7 +111,10 @@ def check_write_off():
         if not qrcode:
             return jsonify({"error": "QR code is required"}), 400
         exists = ItemService.check_with_status_write_off(qrcode)
-        if exists:
+
+        if exists is None:
+            return jsonify({"exists": "not_found"}), 200
+        elif exists:
             return jsonify({"exists": "true"}), 200
         else:
             return jsonify({"exists": "false"}), 200

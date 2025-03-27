@@ -99,17 +99,39 @@ def get_all():
     return jsonify(grouped_items)
 
 
+@shipment_item.route('/toShipment', methods=['GET'])
+@jwt_required()
+def get_all_shipment():
+    current_user_id = g.current_user["id"]
+    grouped_items = ShipmentItemService.get_all_to_ship(current_user_id)
+    if grouped_items is None:
+        return jsonify({
+            "message": "Internal server error",
+        }), 500
+    print(grouped_items)
+    return jsonify(grouped_items)
+
 @shipment_item.route('/checkShipmentItems', methods=['GET'])
 @jwt_required()
 def check_shipment_items():
     current_user_id = g.current_user["id"]
     all_items_valid = ShipmentItemService.check_all_fully_scanned(current_user_id)
-
     if all_items_valid:
         return jsonify({"status": "true"}), 200
     else:
         return jsonify({"status": "false"}), 200
 
+
+@shipment_item.route('/checkShipmentItemsToShip', methods=['GET'])
+@jwt_required()
+def check_shipment_items_to_ship():
+    current_user_id = g.current_user["id"]
+    all_items_valid = ShipmentItemService.check_all_fully_to_ship_scanned(current_user_id)
+
+    if all_items_valid:
+        return jsonify({"status": "true"}), 200
+    else:
+        return jsonify({"status": "false"}), 200
 
 @shipment_item.route('/scanQr', methods=['POST'])
 @jwt_required()
@@ -131,12 +153,49 @@ def scan_qr(dfc: DisaiFileCasher):
         }), 404
     article = gfc_entity.article
 
-    success = ShipmentItemService.process_qr_scan(qrcode, article, current_user_id)
+    success = ShipmentItemService.process_qr_scan(qrcode, article, current_user_id,"STORAGE")
 
     if success:
         return jsonify({"message": "QR-код успешно обработан"}), 200
     else:
         return jsonify({"message": "Ошибка при обработке QR-кода"}), 400
+
+
+@shipment_item.route('/scanQrToShip', methods=['POST'])
+@jwt_required()
+def scan_qr_to_ship(dfc: DisaiFileCasher):
+    data = request.get_json()
+    qrcode = data.get('qrcode')
+    current_user_id = g.current_user["id"]
+
+    if not qrcode:
+        return jsonify({"message": "qrcode обязателен"}), 400
+
+    gtin = qrcode.split(",")[0][4:]
+    gfc_entity = dfc.get_article(gtin)
+
+    if gfc_entity is None:
+        return jsonify({"message": "Article isn't found"}), 404
+
+    article = gfc_entity.article
+
+    if not ShipmentItemService.process_qr_to_ship(qrcode, article, current_user_id, "TO_SHIP"):
+        return jsonify({"message": "Ошибка при обработке QR-кода"}), 400
+
+    order = ShipmentItemService.get_order_by_qrcode(qrcode)
+    sticker = WBService.get_sticker(order)
+
+    if not sticker:
+        return jsonify({"message": "Нет стикера"}), 400
+
+    file = sticker.get('file', "")
+
+    try:
+        response = requests.post(PRINTER_URL, json={"image": file})
+        response.raise_for_status()
+        return jsonify({"message": response.json().get("message")}), 200
+    except requests.exceptions.RequestException as err:
+        return jsonify({"message": f"Ошибка при отправке на принтер: {err}"}), 500
 
 
 @shipment_item.route('/outOfStock', methods=['POST'])
@@ -153,26 +212,56 @@ def outOfStock():
     return jsonify({'message': message}), 200
 
 
-@shipment_item.route('/ship', methods=['POST'])
+@shipment_item.route('/to_ship', methods=['POST'])
 @jwt_required()
-def shipping():
+def to_shipping():
     current_user_id = g.current_user["id"]
-    ship = ShipmentItemService.shipment_all(current_user_id)
+    ship = ShipmentItemService.to_shipment_all(current_user_id)
 
     if ship:
-        return jsonify({'message': 'Success shiping'}), 200
+        return jsonify({'message': 'Success to ship'}), 200
     else:
         return jsonify({"message": "Internal server error"}), 500
 
 
-@shipment_item.route('/cancel/<string:orderUid>',methods = ['POST'])
+@shipment_item.route('/shipmentAll', methods=['POST'])
+@jwt_required()
+def shipped():
+    current_user_id = g.current_user["id"]
+
+    unique_supply_ids, success = ShipmentItemService.shipped_all(current_user_id)
+    print(unique_supply_ids)
+    if not success:
+        return jsonify({"message": "Internal server error"}), 500
+
+    #for supply_id in unique_supply_ids:
+        #qr_code = WBService.get_supply_qr(supply_id)
+        #if not qr_code:
+            #return jsonify({"message": f"Не удалось получить QR-код для supply_id {supply_id}"}), 400
+        #file = qr_code.get('file', "")
+        #try:
+            #response = requests.post(PRINTER_URL, json={"image": file})
+           # response.raise_for_status()
+
+        #except requests.exceptions.HTTPError as http_err:
+            #error_message = f"HTTP error occurred: {http_err}"
+           # return jsonify({"message": error_message, "supply_id": supply_id}), 500
+        #except Exception as err:
+           # return jsonify({"message": f"An error occurred: {err}", "supply_id": supply_id}), 500
+
+    return jsonify({'message': 'Success shipping', 'supply_ids': unique_supply_ids}), 200
+
+
+
+@shipment_item.route('/cancel/<string:orderUid>', methods=['POST'])
 @jwt_required()
 def cancel(orderUid):
-    ship = ShipmentItemService.cancel(orderUid=orderUid)
+    remove_from_shipment = request.json.get('remove_from_shipment', True)
+    ship = ShipmentItemService.cancel(orderUid=orderUid, remove_from_shipment=remove_from_shipment)
     if ship:
         return jsonify({'message': 'Success cancel'}), 200
     else:
-        return jsonify({"message": "Internal server error"}), 500
+        return jsonify({'message': 'Internal server error'}), 500
 
 
 

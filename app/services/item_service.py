@@ -27,8 +27,12 @@ class ItemService:
         return ItemRepository.refund(qrcode, user_id)
 
     @staticmethod
+    def to_shipment(qrcodes: list[str], worker_id: int) -> bool:
+        return ItemRepository.to_shipment(qrcodes, worker_id)
+
+    @staticmethod
     def shipment(qrcodes: list[str], worker_id: int) -> bool:
-        return ItemRepository.shipment(qrcodes,worker_id)
+        return ItemRepository.shipment(qrcodes, worker_id)
 
     @staticmethod
     def get_by_article(article: str) -> Item:
@@ -47,14 +51,14 @@ class ItemService:
         return ItemRepository.check_if_exists(qrcode)
 
     @staticmethod
-    def check_with_status(qrcode: str) -> bool:
-        return ItemRepository.check_if_exists_and_status(qrcode)
+    def check_with_status(qrcode: str,status:str) -> bool:
+        return ItemRepository.check_if_exists_and_status(qrcode,status)
 
     @staticmethod
-    def check_with_status_write_off(qrcode: str) -> bool:
+    def check_with_status_write_off(qrcode: str) -> Optional[bool]:
         return ItemRepository.check_if_exists_and_status_write_off(qrcode)
 
     @staticmethod
-    def check_with_status_refund(qrcode: str) -> bool:
+    def check_with_status_refund(qrcode: str) -> Optional[bool]:
         return ItemRepository.check_to_refund(qrcode)
 
