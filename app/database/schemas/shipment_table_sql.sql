@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS shipment_item (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER NOT NULL,
+    order_id INTEGER NOT NULL, #тут юник
     article TEXT NOT NULL,
     orderUid TEXT NOT NULL,
     worker_id INTEGER,

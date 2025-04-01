@@ -75,7 +75,7 @@ class WBService:
 
                 # Проверяем ответ
                 data = response.json()
-                qr_code = data.get("barcode")
+                qr_code = data.get("file")
                 if qr_code:
                     return qr_code
 
@@ -198,8 +198,9 @@ class WBService:
             for order in all_orders:
                 order_id = order.get("id")
                 order_status = status_orders.get(order_id, {}).get("supplierStatus")
+                order_supply_id = order.get("supplyId")
                 orders_ids.append(order_id)
-                if order_status == "complete":
+                if order_status == "complete" and order_supply_id != "":
                     ShipmentItemService.insert(
                         order_id,
                         order.get("article"),
@@ -207,7 +208,7 @@ class WBService:
                         datetime.now(),
                         "RECEIVED",
                         name,
-                        supply_id
+                        order.get("supplyId")
                     )
             #WBService.add_to_supply(supply_id,orders_ids,token)
         except requests.exceptions.RequestException as req_err:

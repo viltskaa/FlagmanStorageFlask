@@ -1,10 +1,13 @@
-import ast
-
+import base64
+import io
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageOps
 import jwt
 import json
 import flask
 import pandas as pd
 import requests
+from PIL import Image,ImageDraw
 from flask import Response
 from datetime import datetime, timedelta
 from app.repositories import WorkerRepository
@@ -12,7 +15,6 @@ from app.services import ShipmentItemService, TokenService, WBService
 from app.utils.DisaiFileCacher.disai_file_casher import DisaiFileCasher
 from flask import Blueprint, jsonify, request, g, render_template, abort
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
-
 from werkzeug.exceptions import Unauthorized
 
 shipment_item: flask.blueprints.Blueprint = Blueprint('shipment_item', __name__)
@@ -161,6 +163,22 @@ def scan_qr(dfc: DisaiFileCasher):
         return jsonify({"message": "Ошибка при обработке QR-кода"}), 400
 
 
+def base64draw(b64_image: str, text: str) -> str:
+    img = Image.open(BytesIO(base64.b64decode(b64_image)))
+    img = img.rotate(270, expand=True)
+
+    img = ImageOps.expand(img, border=25, fill=(255, 255, 255))
+
+    draw = ImageDraw.Draw(img)
+    draw.text((40, 5), text, font_size=30, fill=(0, 0, 0))
+
+    img = img.rotate(90, expand=True)
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+
+
 @shipment_item.route('/scanQrToShip', methods=['POST'])
 @jwt_required()
 def scan_qr_to_ship(dfc: DisaiFileCasher):
@@ -189,7 +207,7 @@ def scan_qr_to_ship(dfc: DisaiFileCasher):
         return jsonify({"message": "Нет стикера"}), 400
 
     file = sticker.get('file', "")
-
+    file = base64draw(file, article)
     try:
         response = requests.post(PRINTER_URL, json={"image": file})
         response.raise_for_status()
@@ -234,20 +252,19 @@ def shipped():
     if not success:
         return jsonify({"message": "Internal server error"}), 500
 
-    #for supply_id in unique_supply_ids:
-        #qr_code = WBService.get_supply_qr(supply_id)
-        #if not qr_code:
-            #return jsonify({"message": f"Не удалось получить QR-код для supply_id {supply_id}"}), 400
-        #file = qr_code.get('file', "")
-        #try:
-            #response = requests.post(PRINTER_URL, json={"image": file})
-           # response.raise_for_status()
+    for supply_id in unique_supply_ids:
+        qr_code = WBService.get_supply_qr(supply_id)
+        if not qr_code:
+            return jsonify({"message": f"Не удалось получить QR-код для supply_id {supply_id}"}), 400
+        try:
+            response = requests.post(PRINTER_URL, json={"image": qr_code})
+            response.raise_for_status()
 
-        #except requests.exceptions.HTTPError as http_err:
-            #error_message = f"HTTP error occurred: {http_err}"
-           # return jsonify({"message": error_message, "supply_id": supply_id}), 500
-        #except Exception as err:
-           # return jsonify({"message": f"An error occurred: {err}", "supply_id": supply_id}), 500
+        except requests.exceptions.HTTPError as http_err:
+            error_message = f"HTTP error occurred: {http_err}"
+            return jsonify({"message": error_message, "supply_id": supply_id}), 500
+        except Exception as err:
+            return jsonify({"message": f"An error occurred: {err}", "supply_id": supply_id}), 500
 
     return jsonify({'message': 'Success shipping', 'supply_ids': unique_supply_ids}), 200
 

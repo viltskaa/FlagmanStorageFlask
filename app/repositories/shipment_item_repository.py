@@ -478,7 +478,7 @@ class ShipmentItemRepository:
                    SET is_active = 'TO_SHIP', worker_id = ?, action_time = ?
                    WHERE created_date = ?
                    AND is_active IN ('RECEIVED', 'POSTPONED')
-                   AND si.for_this IN ({','.join(['?'] * len(tokens))})
+                   AND for_this IN ({','.join(['?'] * len(tokens))})
                    AND orderUid IN (
                         SELECT si.orderUid
                         FROM shipment_item si
