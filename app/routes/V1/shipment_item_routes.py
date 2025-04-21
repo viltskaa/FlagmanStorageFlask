@@ -296,10 +296,16 @@ def get_storage():
 
         table = ShipmentItemService.get_all_by_period(datetime_start, datetime_end, status)
         print(table)
-        dataframe = pd.DataFrame(table, columns=['article', 'orderUid', 'action_time', 'for_this', 'created_date',
-                                                 'created_time'])
+        data = [{
+            "Артикул": item.article,
+            "Заказ": item.orderUid,
+            "Время(если None - поступили)": item.action_time if item.action_time else "ПОСТУПИЛИ",
+            "Магазин": item.for_this,
+            "Дата": item.created_date,
+            "Время": item.created_time
+        } for item in table]
 
-        dataframe.columns = ['Артикул', 'Заказ', 'Время(если None - поступили)', 'Магазин', 'Дата', 'Время']
+        dataframe = pd.DataFrame(data)
 
         return render_template(
             "ShipmentOrdersTable.html",

@@ -214,7 +214,7 @@ class ShipmentItemRepository:
             date_end_datetime = date_end.strftime("%Y-%m-%d %H:%M:%S")
 
             cursor.execute("""
-                    SELECT id, article, orderUid,for_this,scanned,supply_id,scanned_time,worker_id,created_date, created_time,action_time,is_active 
+                    SELECT id, order_id, article, orderUid,for_this,scanned,supply_id,scanned_time,worker_id,created_date,created_time,action_time,is_active 
                     FROM shipment_item 
                     WHERE is_active = ?
                     AND (created_date || ' ' || created_time) BETWEEN ? AND ?
